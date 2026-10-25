@@ -1,0 +1,11 @@
+{
+  "extends": "@pulsedesk/config/typescript/base",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,374 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+enum TicketStatus {
+  OPEN
+  TRIAGED
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketSource {
+  WEB
+  EMAIL
+  PHONE
+  CHAT
+  INTERNAL
+}
+
+enum CommentVisibility {
+  INTERNAL
+  PUBLIC
+}
+
+enum SlaEventType {
+  FIRST_RESPONSE
+  RESOLUTION
+}
+
+enum NotificationType {
+  SYSTEM
+  TICKET_ASSIGNED
+  TICKET_UPDATED
+  SLA_BREACHED
+  SLA_FIRST_RESPONSE_BREACHED
+  SLA_RESOLUTION_BREACHED
+}
+
+model User {
+  id            String               @id @default(uuid()) @db.Uuid
+  name          String
+  email         String               @unique
+  passwordHash  String
+  avatarUrl     String?
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @db.Timestamptz(3)
+  memberships   OrganizationMember[]
+  refreshTokens RefreshToken[]
+}
+
+model Organization {
+  id            String                     @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String                     @unique
+  createdAt     DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                   @updatedAt @db.Timestamptz(3)
+  members       OrganizationMember[]
+  teams         Team[]
+  teamMembers   TeamMember[]
+  customers     Customer[]
+  tickets       Ticket[]
+  assignments   TicketAssignment[]
+  comments      TicketComment[]
+  statusHistory TicketStatusHistory[]
+  slaPolicies   SlaPolicy[]
+  slaEvents     SlaEvent[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  outboxEvents  OutboxEvent[]
+  ticketCounter OrganizationTicketCounter?
+}
+
+model OrganizationMember {
+  id                  String                @id @default(uuid()) @db.Uuid
+  organizationId      String                @db.Uuid
+  userId              String                @db.Uuid
+  role                OrganizationRole      @default(VIEWER)
+  createdAt           DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime              @updatedAt @db.Timestamptz(3)
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  teamMemberships     TeamMember[]
+  assignedTickets     Ticket[]              @relation("CurrentAssignee")
+  assignmentsReceived TicketAssignment[]    @relation("AssignmentRecipient")
+  assignmentsMade     TicketAssignment[]    @relation("AssignmentActor")
+  comments            TicketComment[]
+  statusChanges       TicketStatusHistory[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+
+  @@unique([organizationId, userId])
+  @@unique([organizationId, id])
+  @@index([userId])
+}
+
+model Team {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  members        TeamMember[]
+  tickets        Ticket[]
+  assignments    TicketAssignment[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, id])
+}
+
+model TeamMember {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  teamId         String             @db.Uuid
+  memberId       String             @db.Uuid
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  team           Team               @relation(fields: [organizationId, teamId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  member         OrganizationMember @relation(fields: [organizationId, memberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, teamId, memberId])
+  @@index([organizationId, memberId])
+}
+
+model Customer {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  email          String?
+  phone          String?
+  companyName    String?
+  notes          String?
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  tickets        Ticket[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, name])
+  @@index([organizationId, email])
+  @@index([organizationId, companyName])
+}
+
+model Ticket {
+  id               String                @id @default(uuid()) @db.Uuid
+  organizationId   String                @db.Uuid
+  customerId       String                @db.Uuid
+  assignedTeamId   String?               @db.Uuid
+  assignedMemberId String?               @db.Uuid
+  ticketNumber     Int
+  version          Int                   @default(0)
+  subject          String
+  description      String
+  status           TicketStatus          @default(OPEN)
+  priority         TicketPriority        @default(MEDIUM)
+  source           TicketSource          @default(WEB)
+  createdAt        DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime              @updatedAt @db.Timestamptz(3)
+  resolvedAt       DateTime?             @db.Timestamptz(3)
+  closedAt         DateTime?             @db.Timestamptz(3)
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  customer         Customer              @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignedTeam     Team?                 @relation(fields: [organizationId, assignedTeamId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignedMember   OrganizationMember?   @relation("CurrentAssignee", fields: [organizationId, assignedMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignments      TicketAssignment[]
+  comments         TicketComment[]
+  statusHistory    TicketStatusHistory[]
+  slaEvents        SlaEvent[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, ticketNumber])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt, id])
+  @@index([organizationId, assignedMemberId, createdAt, id])
+  @@index([organizationId, assignedTeamId, createdAt, id])
+  @@index([organizationId, priority, createdAt, id])
+  @@index([organizationId, customerId])
+}
+
+model TicketAssignment {
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @db.Uuid
+  ticketId           String              @db.Uuid
+  assignedMemberId   String?             @db.Uuid
+  assignedTeamId     String?             @db.Uuid
+  assignedByMemberId String              @db.Uuid
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ticket             Ticket              @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignedMember     OrganizationMember? @relation("AssignmentRecipient", fields: [organizationId, assignedMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignedTeam       Team?               @relation(fields: [organizationId, assignedTeamId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  assignedByMember   OrganizationMember  @relation("AssignmentActor", fields: [organizationId, assignedByMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, ticketId, createdAt, id])
+  @@index([organizationId, assignedMemberId])
+  @@index([organizationId, assignedTeamId])
+  @@index([organizationId, assignedByMemberId])
+}
+
+model TicketComment {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  ticketId       String             @db.Uuid
+  authorMemberId String             @db.Uuid
+  body           String
+  visibility     CommentVisibility  @default(INTERNAL)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ticket         Ticket             @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  authorMember   OrganizationMember @relation(fields: [organizationId, authorMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, ticketId, createdAt, id])
+  @@index([organizationId, authorMemberId])
+}
+
+model TicketStatusHistory {
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String             @db.Uuid
+  ticketId          String             @db.Uuid
+  fromStatus        TicketStatus?
+  toStatus          TicketStatus
+  changedByMemberId String             @db.Uuid
+  reason            String?
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ticket            Ticket             @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  changedByMember   OrganizationMember @relation(fields: [organizationId, changedByMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, ticketId, createdAt, id])
+  @@index([organizationId, changedByMemberId])
+}
+
+model SlaPolicy {
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @db.Uuid
+  name                 String
+  priority             TicketPriority
+  firstResponseMinutes Int
+  resolutionMinutes    Int
+  isActive             Boolean        @default(true)
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
+  organization         Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  events               SlaEvent[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, priority])
+}
+
+model SlaEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  ticketId       String       @db.Uuid
+  policyId       String       @db.Uuid
+  type           SlaEventType
+  dueAt          DateTime     @db.Timestamptz(3)
+  completedAt    DateTime?    @db.Timestamptz(3)
+  breachedAt     DateTime?    @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ticket         Ticket       @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  policy         SlaPolicy    @relation(fields: [organizationId, policyId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  outboxEvents OutboxEvent[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, ticketId, type])
+  @@index([completedAt, breachedAt, dueAt, id])
+  @@index([organizationId, policyId])
+}
+
+model Notification {
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String             @db.Uuid
+  recipientMemberId String             @db.Uuid
+  type              NotificationType
+  title             String
+  message           String
+  entityType        String?
+  entityId          String?            @db.Uuid
+  readAt            DateTime?          @db.Timestamptz(3)
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  recipientMember   OrganizationMember @relation(fields: [organizationId, recipientMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, recipientMemberId, readAt, createdAt, id])
+}
+
+model AuditLog {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  actorMemberId  String?             @db.Uuid
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actorMember    OrganizationMember? @relation(fields: [organizationId, actorMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, entityType, entityId, createdAt, id])
+  @@index([organizationId, actorMemberId, createdAt, id])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model OrganizationTicketCounter {
+  organizationId String       @id @db.Uuid
+  lastNumber     Int          @default(0)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+}
+
+enum OutboxEventType {
+  SLA_EVENT_SCHEDULED
+  SLA_EVENT_COMPLETED
+}
+
+model OutboxEvent {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  slaEventId     String          @db.Uuid
+  type           OutboxEventType
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  processedAt    DateTime?       @db.Timestamptz(3)
+  nextAttemptAt  DateTime        @default(now()) @db.Timestamptz(3)
+  attempts       Int             @default(0)
+  lastError      String?         @db.VarChar(100)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  slaEvent       SlaEvent        @relation(fields: [organizationId, slaEventId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([slaEventId, type])
+  @@index([processedAt, nextAttemptAt, createdAt, id])
+  @@index([organizationId])
+}

@@ -1,0 +1,49 @@
+{
+  "name": "@pulsedesk/api",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "prisma generate && nest start --watch",
+    "build": "prisma generate && nest build",
+    "start": "node dist/main.js",
+    "lint": "eslint .",
+    "typecheck": "prisma generate && tsc --noEmit && tsc -p tsconfig.test.json",
+    "test": "prisma generate && tsx --tsconfig tsconfig.test.json --import ./test/setup.mjs --test test/*.test.ts",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:status": "prisma migrate status",
+    "worker": "node dist/worker.js",
+    "worker:dev": "prisma generate && tsx watch src/worker.ts",
+    "worker:recover": "node dist/worker/recover.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/config": "^4.0.0",
+    "@pulsedesk/shared": "workspace:*",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "dotenv": "^17.2.0",
+    "@prisma/client": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/throttler": "^6.0.0",
+    "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@pulsedesk/config": "workspace:*",
+    "prisma": "7.10.1",
+    "tsx": "^4.21.0",
+    "@nestjs/testing": "^11.1.0",
+    "@types/express": "^5.0.0"
+  }
+}

@@ -1,0 +1,32 @@
+name: pulsedesk
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: pulsedesk
+      POSTGRES_PASSWORD: pulsedesk_local
+      POSTGRES_DB: pulsedesk
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pulsedesk -d pulsedesk']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:8.10-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  postgres_data:
+  redis_data:
