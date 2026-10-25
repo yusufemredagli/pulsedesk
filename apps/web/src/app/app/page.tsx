@@ -1,4 +1,4 @@
-import { Landing } from '../../features/application/landing';
-export default function ApplicationPage() {
-  return <Landing />;
+import { redirect } from 'next/navigation';
+export default function Page() {
+  redirect('/app/dashboard');
 }

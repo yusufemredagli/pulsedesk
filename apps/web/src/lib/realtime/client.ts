@@ -42,6 +42,7 @@ export class RealtimeClient {
   private target?: RealtimeTarget;
   private retry?: ReturnType<typeof setTimeout>;
   private recoveryUsed = false;
+  private readiness?: ReturnType<typeof setTimeout>;
   constructor(
     private readonly factory: SocketFactory,
     private readonly callbacks: {
@@ -51,6 +52,7 @@ export class RealtimeClient {
       refresh(token: string): Promise<void>;
       denied(): void;
     },
+    private readonly readinessTimeout = 10000,
   ) {}
   update(target?: RealtimeTarget): void {
     if (
@@ -72,6 +74,18 @@ export class RealtimeClient {
     this.socket = socket;
     const current = () => this.socket === socket && this.target === target;
     this.callbacks.status('connecting');
+    const watchReadiness = () => {
+      if (!current()) return;
+      if (this.readiness) clearTimeout(this.readiness);
+      this.readiness = setTimeout(() => {
+        if (current()) {
+          this.callbacks.status('degraded');
+          this.schedule(socket, current);
+        }
+      }, this.readinessTimeout);
+    };
+    watchReadiness();
+    socket.on('connect', watchReadiness);
     socket.on('connection:ready', () => {
       if (!current()) return;
       socket
@@ -90,6 +104,9 @@ export class RealtimeClient {
               isRole(response.role)
             ) {
               this.recoveryUsed = false;
+              if (this.retry) clearTimeout(this.retry);
+              this.retry = undefined;
+              if (this.readiness) clearTimeout(this.readiness);
               this.callbacks.status('connected');
               this.callbacks.joined(response.role);
             } else if (
@@ -150,6 +167,8 @@ export class RealtimeClient {
     await this.callbacks.refresh(token).catch(() => {});
   }
   private disconnect(): void {
+    if (this.readiness) clearTimeout(this.readiness);
+    this.readiness = undefined;
     if (this.retry) clearTimeout(this.retry);
     this.retry = undefined;
     const socket = this.socket;

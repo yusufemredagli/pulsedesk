@@ -15,11 +15,19 @@ export interface EventMetadata {
   ticketNumber?: number;
   version?: number;
   notificationId?: string;
+  toStatus?: string;
+  priority?: string;
 }
 export class Reconciliation {
   private seen = new Map<string, true>();
   private versions = new Map<string, number>();
   constructor(private readonly bound = 256) {}
+  observe(ticketId: string, version: number): void {
+    if (version < (this.versions.get(ticketId) ?? -1)) return;
+    this.versions.delete(ticketId);
+    this.versions.set(ticketId, version);
+    this.trim(this.versions);
+  }
   reset(): void {
     this.seen.clear();
     this.versions.clear();
@@ -66,6 +74,25 @@ export class Reconciliation {
       this.versions.delete(value.ticketId);
       this.versions.set(value.ticketId, value.version);
       this.trim(this.versions);
+      if (
+        typeof value.toStatus === 'string' &&
+        [
+          'OPEN',
+          'TRIAGED',
+          'ASSIGNED',
+          'IN_PROGRESS',
+          'WAITING_CUSTOMER',
+          'RESOLVED',
+          'CLOSED',
+          'CANCELLED',
+        ].includes(value.toStatus)
+      )
+        base.toStatus = value.toStatus;
+      if (
+        typeof value.priority === 'string' &&
+        ['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(value.priority)
+      )
+        base.priority = value.priority;
       Object.assign(base, {
         ticketId: value.ticketId,
         ticketNumber: value.ticketNumber,

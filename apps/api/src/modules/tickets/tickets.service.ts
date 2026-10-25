@@ -134,9 +134,34 @@ export class TicketsService {
           orderBy: [sorts[query.sort]!, { id: 'desc' }],
         });
         const total = await tx.ticket.count({ where });
+        const sla = await tx.slaEvent.findMany({
+          where: {
+            organizationId: context.organizationId,
+            ticketId: { in: rows.map((row) => row.id) },
+          },
+          select: {
+            id: true,
+            ticketId: true,
+            type: true,
+            dueAt: true,
+            completedAt: true,
+            breachedAt: true,
+          },
+        });
         const related = await this.related(tx, context, rows);
         return {
-          data: rows.map(related.ticket),
+          data: rows.map((row) => ({
+            ...related.ticket(row),
+            sla: sla
+              .filter((event) => event.ticketId === row.id)
+              .map((event) => ({
+                id: event.id,
+                type: event.type,
+                dueAt: event.dueAt,
+                completedAt: event.completedAt,
+                breachedAt: event.breachedAt,
+              })),
+          })),
           pagination: pagination(query, total),
         };
       },

@@ -576,6 +576,39 @@ test('socket lifecycle joins explicitly, replaces stale-token sockets, and disco
   assert.equal(created[2]!.disconnections, 1);
   realtime.stop();
 });
+test('stalled realtime readiness becomes degraded and successful joins cancel the deadline', async () => {
+  const states: string[] = [];
+  let socket = new FakeSocket();
+  const realtime = new RealtimeClient(
+    () => socket,
+    {
+      status: (value) => states.push(value),
+      joined: () => {},
+      event: () => {},
+      refresh: async () => {},
+      denied: () => {},
+    },
+    5,
+  );
+  const target = {
+    token: accessA,
+    organizationId: orgA,
+    membershipId: memberA,
+    revision: 1,
+  };
+  try {
+    realtime.update(target);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    assert.equal(states.at(-1), 'degraded');
+    socket = new FakeSocket();
+    realtime.update({ ...target, token: accessB });
+    socket.server('connection:ready');
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    assert.equal(states.at(-1), 'connected');
+  } finally {
+    realtime.stop();
+  }
+});
 test('realtime authentication recovery is bounded when fresh-token socket authentication also fails', async () => {
   const created: FakeSocket[] = [];
   let refreshes = 0;

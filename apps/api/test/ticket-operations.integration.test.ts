@@ -209,6 +209,173 @@ test(
         return ticket;
       }
       await t.test(
+        'dashboard summary uses live tenant and agent ticket scope with zero empty counts',
+        async () => {
+          const empty = await call<Record<string, number>>(
+            'GET',
+            '/dashboard/summary',
+            foreign,
+          );
+          assert.equal(empty.status, 200);
+          for (const key of [
+            'open',
+            'urgent',
+            'atRisk',
+            'breached',
+            'unassigned',
+            'activeWork',
+          ])
+            assert.equal(empty.body[key], 0);
+          const ticket = await assigned();
+          const own = await call<Record<string, number>>(
+            'GET',
+            '/dashboard/summary',
+            agent,
+          );
+          const other = await call<Record<string, number>>(
+            'GET',
+            '/dashboard/summary',
+            otherAgent,
+          );
+          assert.equal(own.body.open, 1);
+          assert.equal(other.body.open, 0);
+          const policy = await db.slaPolicy.create({
+            data: {
+              organizationId: owner.organizationId,
+              name: 'Summary fixture',
+              priority: 'HIGH',
+              firstResponseMinutes: 20,
+              resolutionMinutes: 25,
+              isActive: false,
+            },
+          });
+          await db.ticket.update({
+            where: { id: ticket.id },
+            data: { priority: 'URGENT', status: 'IN_PROGRESS' },
+          });
+          await db.slaEvent.createMany({
+            data: ['FIRST_RESPONSE', 'RESOLUTION'].map((type) => ({
+              organizationId: owner.organizationId,
+              ticketId: ticket.id,
+              policyId: policy.id,
+              type: type as 'FIRST_RESPONSE' | 'RESOLUTION',
+              dueAt: new Date(Date.now() + 1200000),
+            })),
+          });
+          const risk = await call<Record<string, number>>(
+            'GET',
+            '/dashboard/summary',
+            owner,
+          );
+          assert.equal(risk.body.atRisk, 1);
+          assert.equal(risk.body.urgent, 1);
+          assert.equal(risk.body.activeWork, 1);
+          assert.equal(risk.body.unassigned, 0);
+          const listSla = await call<Page<{ sla: unknown[] }>>(
+            'GET',
+            '/tickets',
+            owner,
+          );
+          assert.equal(listSla.body.data[0]!.sla.length, 2);
+          await db.slaEvent.updateMany({
+            where: { ticketId: ticket.id, type: 'FIRST_RESPONSE' },
+            data: { dueAt: new Date(Date.now() - 60000) },
+          });
+          assert.equal(
+            (
+              await call<Record<string, number>>(
+                'GET',
+                '/dashboard/summary',
+                owner,
+              )
+            ).body.breached,
+            1,
+          );
+          await db.ticket.update({
+            where: { id: ticket.id },
+            data: { status: 'CLOSED' },
+          });
+          const terminal = await call<Record<string, number>>(
+            'GET',
+            '/dashboard/summary',
+            owner,
+          );
+          assert.equal(terminal.body.atRisk, 0);
+          assert.equal(terminal.body.breached, 0);
+          assert.equal(terminal.body.open, 0);
+          await db.$transaction(async (tx) => {
+            await tx.outboxEvent.deleteMany({
+              where: {
+                ticketId: ticket.id,
+                organizationId: owner.organizationId,
+              },
+            });
+            await tx.slaEvent.deleteMany({ where: { ticketId: ticket.id } });
+            await tx.slaPolicy.delete({ where: { id: policy.id } });
+            await tx.ticketStatusHistory.deleteMany({
+              where: { ticketId: ticket.id },
+            });
+            await tx.ticketAssignment.deleteMany({
+              where: { ticketId: ticket.id },
+            });
+            await tx.auditLog.deleteMany({
+              where: {
+                entityId: ticket.id,
+                organizationId: owner.organizationId,
+              },
+            });
+            await tx.ticket.delete({ where: { id: ticket.id } });
+            await tx.organizationTicketCounter.delete({
+              where: { organizationId: owner.organizationId },
+            });
+          });
+        },
+      );
+      await t.test(
+        'member directory is bounded, safe, searchable and tenant/team scoped',
+        async () => {
+          const page = await call<Page<{ membershipId: string; name: string }>>(
+            'GET',
+            '/organization/members?limit=1',
+            viewer,
+          );
+          assert.equal(page.status, 200);
+          assert.equal(page.body.data.length, 1);
+          assert.ok(page.body.pagination.total >= 6);
+          assert.deepEqual(Object.keys(page.body.data[0]!).sort(), [
+            'avatarUrl',
+            'membershipId',
+            'name',
+            'userId',
+          ]);
+          const filtered = await call<Page<{ membershipId: string }>>(
+            'GET',
+            `/organization/members?teamId=${foreignTeam.id}`,
+            owner,
+          );
+          assert.equal(filtered.body.pagination.total, 0);
+          assert.equal(
+            (await call('GET', '/organization/members?teamId=bad', owner))
+              .status,
+            400,
+          );
+          assert.equal(
+            (await call('GET', '/organization/members?limit=101', owner))
+              .status,
+            400,
+          );
+          const search = await call<Page<{ membershipId: string }>>(
+            'GET',
+            '/organization/members?search=Fixture%20OWNER',
+            owner,
+          );
+          assert.deepEqual(
+            search.body.data.map((row) => row.membershipId),
+            [owner.memberId],
+          );
+        },
+      );
+      await t.test(
         'teams list/detail/update and uniqueness are organization scoped',
         async () => {
           assert.equal(
@@ -1167,6 +1334,7 @@ test(
           await tx.ticketAssignment.deleteMany({ where });
           await tx.auditLog.deleteMany({ where });
           await tx.ticket.deleteMany({ where });
+          await tx.slaPolicy.deleteMany({ where });
           await tx.organizationTicketCounter.deleteMany({ where });
           await tx.customer.deleteMany({ where });
           await tx.teamMember.deleteMany({ where });

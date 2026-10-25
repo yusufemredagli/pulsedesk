@@ -1,3 +1,4 @@
+import { OperationsModule } from './modules/operations/operations.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { ReadyController } from './ready.controller';
@@ -23,6 +24,7 @@ import { validateEnvironment } from './config/environment';
       validate: validateEnvironment,
     }),
     DatabaseModule,
+    OperationsModule,
     AuthModule,
     RedisModule,
     SlaModule,

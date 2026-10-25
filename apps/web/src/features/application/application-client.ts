@@ -174,6 +174,18 @@ export class ApplicationClient {
     if (this.poll) clearInterval(this.poll);
     this.poll = undefined;
   }
+  observeTicket(id: string, version: number) {
+    this.reconciliation.observe(id, version);
+  }
+  request<T>(
+    path: string,
+    options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
+  ) {
+    return this.session.api.request<T>(path, {
+      ...options,
+      organization: true,
+    });
+  }
   login = (input: { email: string; password: string }): Promise<void> =>
     this.session.authenticate('login', input);
   register = (input: {

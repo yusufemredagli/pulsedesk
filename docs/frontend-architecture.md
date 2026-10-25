@@ -1,16 +1,18 @@
-# Frontend application foundation — Phase 5C
+# Frontend application architecture — Phases 5C and 6
 
-The existing Next.js App Router application now provides authentication, explicit organization selection, protected client routing, a minimal operations shell, a persisted notification preview, and centralized API/realtime clients. It does not implement full dashboard metrics, ticket/customer/team/SLA management screens, incidents, presence, or realtime mutations.
+The existing Next.js App Router application now provides authentication, explicit organization selection, protected client routing, an operational dashboard, server-filtered ticket queue, ticket detail workflows, a persisted notification preview, and centralized API/realtime clients. Customer/team/SLA administration screens, incidents and presence remain deferred.
 
 ## Routes and boundaries
 
-| Route                  | Behavior                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `/`                    | Redirects to `/login`                                                                |
-| `/login`, `/register`  | Accessible labeled forms; authenticated sessions continue to selection or `/app`     |
-| `/select-organization` | Requires authentication; refreshes memberships and verifies context before entering  |
-| `/app`                 | Requires a restored session and selected organization; minimal landing/activity view |
-| `/app/notifications`   | Same gate; up to five persisted unread notifications, refresh and mark-read          |
+| Route                               | Behavior                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| `/`                                 | Redirects to `/login`                                                                |
+| `/login`, `/register`               | Accessible labeled forms; authenticated sessions continue to selection or `/app`     |
+| `/select-organization`              | Requires authentication; refreshes memberships and verifies context before entering  |
+| `/app`                              | Requires a restored session and selected organization; redirects to `/app/dashboard` |
+| `/app/dashboard`                    | Real scoped operational metrics and a bounded live activity feed                     |
+| `/app/tickets`, `/app/tickets/[id]` | Server-filtered queue and version-checked ticket workflow                            |
+| `/app/notifications`                | Same gate; up to five persisted unread notifications, refresh and mark-read          |
 
 Layouts/pages remain App Router entries. Interactive auth/shell components consume `ApplicationProvider`; central controllers are ordinary TypeScript and tested without React/browser mocks. `useSyncExternalStore` exposes immutable public snapshots. Initial server/client snapshots agree, and browser session restoration starts in an effect. No credentials or tenant data are rendered into server HTML.
 
@@ -32,7 +34,7 @@ pnpm dev
 pnpm worker
 ```
 
-The only backend integration change is `configureHttpCors(app)` before listening. Browser fetches to the API were previously blocked because HTTP CORS was not configured. It reuses `FRONTEND_ORIGINS`, permits GET/POST/PATCH/OPTIONS and Content-Type/Authorization/X-Organization-Id, exposes Retry-After, and enables no credentialed cookies. Unlisted browser origins receive no allow-origin header. Existing auth/domain response contracts, database schema, Socket.IO origin enforcement, and worker semantics are unchanged. Use TLS outside local development.
+The Phase 5C HTTP integration is `configureHttpCors(app)` before listening. Browser fetches to the API were previously blocked because HTTP CORS was not configured. It reuses `FRONTEND_ORIGINS`, permits GET/POST/PATCH/OPTIONS and Content-Type/Authorization/X-Organization-Id, exposes Retry-After, and enables no credentialed cookies. Unlisted browser origins receive no allow-origin header. Existing auth/domain response contracts, database schema, Socket.IO origin enforcement, and worker semantics are unchanged. Use TLS outside local development.
 
 `JsonTransport` owns base URL, JSON serialization, ten-second request deadlines, caller abort, `cache: no-store`, and `credentials: omit`. It calls native fetch through a wrapper to preserve browser invocation semantics. Remote error bodies/HTML/messages are never displayed or logged; `ApiError` maps status codes to fixed safe messages. `ApiClient` centrally adds bearer credentials and a captured organization header. Components do not construct headers or call fetch independently.
 
@@ -107,3 +109,9 @@ Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. Full backend s
 Browser verification uses isolated Chromium and a disposable migrated PostgreSQL database, isolated Redis namespace, compiled API/worker, and built web app. It covers real forms, protected redirects, live organization joins, persisted notification delivery/read, workspace switching, expired-token recovery and refresh rotation, reload restoration, proactive refresh/socket replacement, mobile overflow, logout, revoked-session cleanup, and HTTP usability with only WebSocket transport blocked. No production environment file or developer database reset is used.
 
 Deferred frontend work includes feature dashboards/lists/details, analytics, customer/team/SLA management, full notification pagination/history, frontend authorization capabilities beyond backend enforcement, cookie transport, cross-tab coordination, presence/typing, incidents, and email/SMS.
+
+## Phase 6 operational screens
+
+`features/operations` contains dashboard, queue, detail, modal forms, shared presentation and pure model helpers. `useResource` wraps the centralized organization API, keys rendered results by path/tenant revision, aborts superseded requests, and batches realtime refreshes with a 200 ms debounce. ApplicationClient exposes a narrow organization-scoped request method without exposing credentials. Successful ticket HTTP reads seed the existing bounded realtime version tracker. Local command completion and live hints trigger HTTP reconciliation rather than partial socket merges. Visible resources also refresh on focus and once per minute to recover missed hints and age dashboard counts. A ten-second Socket.IO readiness deadline exposes silent transport stalls as degraded, while a successful join cancels pending retries.
+
+Command dialogs retain their opening expectedVersion. Synchronous submit locks prevent double-click mutations; conflicts refetch and require a fresh user decision. Views remount their form/filter state on tenant revision changes. The bell keeps a bounded preview and handles mark-read failures locally. See [product UI](product-ui.md) for count definitions, roles, SLA rules and responsive behavior.

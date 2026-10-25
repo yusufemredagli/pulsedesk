@@ -1,13 +1,14 @@
 'use client';
 import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Brand, Icon, type IconName } from '../../components/brand';
 import { useApplication } from './provider';
 import { RouteGate } from '../auth/route-gate';
 import type { ReactNode } from 'react';
 const navigation: Array<{ label: string; icon: IconName; href?: string }> = [
-  { label: 'Overview', icon: 'grid', href: '/app' },
-  { label: 'Tickets', icon: 'ticket' },
+  { label: 'Overview', icon: 'grid', href: '/app/dashboard' },
+  { label: 'Tickets', icon: 'ticket', href: '/app/tickets' },
   { label: 'Customers', icon: 'users' },
   { label: 'Teams', icon: 'team' },
   { label: 'Notifications', icon: 'bell', href: '/app/notifications' },
@@ -26,6 +27,10 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
           <Link
             key={item.label}
             href={item.href}
+            onClick={(event) => {
+              const details = event.currentTarget.closest('details');
+              if (details) details.open = false;
+            }}
             aria-current={pathname === item.href ? 'page' : undefined}
           >
             <Icon name={item.icon} />
@@ -132,18 +137,7 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
                 <span className="status-dot" />
                 {statusLabel}
               </span>
-              <Link
-                href="/app/notifications"
-                className="notification-bell"
-                aria-label={`Notifications${state.unread === null ? ', count not available' : `, ${state.unread} unread`}`}
-              >
-                <Icon name="bell" size={21} />
-                {state.unread !== null && state.unread > 0 && (
-                  <span className="notification-badge">
-                    {state.unread > 99 ? '99+' : state.unread}
-                  </span>
-                )}
-              </Link>
+              <NotificationBell key={state.tenantRevision} />
               <span className="topbar-avatar" title={user?.name}>
                 {user?.name.slice(0, 1).toUpperCase()}
               </span>
@@ -166,5 +160,63 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </RouteGate>
+  );
+}
+
+function NotificationBell() {
+  const { state, client } = useApplication();
+  const lock = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function read(id: string) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await client.markRead(id);
+    } catch {
+      setError('Could not mark this alert as read. Please try again.');
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <details className="notification-preview">
+      <summary
+        className="notification-bell"
+        aria-label={`Notifications, ${state.unread ?? 'unknown'} unread`}
+      >
+        <Icon name="bell" size={21} />
+        {!!state.unread && (
+          <span className="notification-badge">
+            {state.unread > 99 ? '99+' : state.unread}
+          </span>
+        )}
+      </summary>
+      <div className="notification-popover">
+        <header>
+          <strong>Notifications</strong>
+          <Link href="/app/notifications">View all</Link>
+        </header>
+        {(state.notificationError || error) && (
+          <p role="alert">{error || state.notificationError}</p>
+        )}
+        {!state.notifications.length && (
+          <p>You’re all caught up. New service alerts will appear here.</p>
+        )}
+        {state.notifications.map((item) => (
+          <article key={item.id}>
+            <strong>{item.title}</strong>
+            <p>{item.message}</p>
+            <time>{new Date(item.createdAt).toLocaleString()}</time>
+            <button disabled={busy} onClick={() => void read(item.id)}>
+              Mark read
+            </button>
+          </article>
+        ))}
+      </div>
+    </details>
   );
 }
