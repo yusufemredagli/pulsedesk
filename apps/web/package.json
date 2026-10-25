@@ -8,19 +8,22 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\""
+    "clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\"",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@pulsedesk/shared": "workspace:*",
+    "@pulsedesk/ui": "workspace:*",
     "next": "^16.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@pulsedesk/shared": "workspace:*",
-    "@pulsedesk/ui": "workspace:*"
+    "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
     "@pulsedesk/config": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "eslint-config-next": "^16.1.0"
+    "eslint-config-next": "^16.1.0",
+    "tsx": "^4.23.15"
   }
 }

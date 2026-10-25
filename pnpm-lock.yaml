@@ -129,6 +129,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.3.1(react@19.3.1)
+      socket.io-client:
+        specifier: ^4.8.4
+        version: 4.8.4
     devDependencies:
       '@pulsedesk/config':
         specifier: workspace:*
@@ -142,6 +145,9 @@ importers:
       eslint-config-next:
         specifier: ^16.1.0
         version: 16.4.3(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/config:
     dependencies:

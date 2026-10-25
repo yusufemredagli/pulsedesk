@@ -1,6 +1,6 @@
 # Authentication and organization authorization — Phase 2
 
-The backend now provides password authentication, revocable sessions, live organization context, and explicit role checks. Phase 3 now provides [team/customer/ticket APIs](ticket-lifecycle.md) using these guards. Phase 4 adds the [SLA worker](sla-engine.md), and Phase 5A adds [authenticated realtime transport](realtime.md), sharing `AccessTokenService` with the HTTP bearer guard. Frontend authentication screens, incident operations, and email delivery remain unimplemented. Phase 5B adds outbox-backed realtime hints with session/member revalidation before delivery. Phase 3 changes ticket numbering/versioning only; the authentication/session schema remains unchanged. Swagger was not previously installed and is not added.
+The backend now provides password authentication, revocable sessions, live organization context, and explicit role checks. Phase 3 now provides [team/customer/ticket APIs](ticket-lifecycle.md) using these guards. Phase 4 adds the [SLA worker](sla-engine.md), and Phase 5A adds [authenticated realtime transport](realtime.md), sharing `AccessTokenService` with the HTTP bearer guard. Phase 5C adds [frontend authentication and session handling](frontend-architecture.md); incident operations and email delivery remain unimplemented. Phase 5B adds outbox-backed realtime hints with session/member revalidation before delivery. Phase 3 changes ticket numbering/versioning only; the authentication/session schema remains unchanged. Swagger was not previously installed and is not added.
 
 ## API contract
 
@@ -114,7 +114,7 @@ pnpm --filter @pulsedesk/api prisma:migrate:deploy
 pnpm dev
 ```
 
-The API remains on port 4000. Registration and login return bearer credentials in JSON for API clients. TLS is required outside local development. Browser storage, secure cookie transport, CORS policy, and CSRF defenses must be designed together when the frontend auth phase is implemented; no browser authentication UI or cookie behavior is claimed here.
+The API remains on port 4000. Registration and login return bearer credentials in JSON for API clients. TLS is required outside local development. Browser storage, secure cookie transport, CORS policy, and CSRF defenses must be designed together when the frontend auth phase is implemented; Phase 5C implements browser authentication UI with contained sessionStorage credentials and explicit HTTP/Socket.IO origin allowlists; cookie transport remains deferred.
 
 ## Rate limiting and deployment assumptions
 
@@ -128,4 +128,4 @@ Counters reset on restart and are not shared between replicas. Shared NATs can a
 
 HTTP tests cover atomic registration, duplicate email races, forced slug collisions, signing-failure rollback, login failures, inactive/deleted users, public profiles, rotation/replay/concurrency, failed-rotation rollback, expiry, idempotent logout, JWT rejection, live role changes, removed memberships, foreign tenants, missing/malformed headers, DTO validation, and session limits. Built API smoke checks also exercise registration, login, `/me`, refresh, logout, and organization guards against PostgreSQL.
 
-The security review checks public projections, hashed-only refresh persistence, explicit JWT verification, live database authorization, transactional writes, compare-and-swap rotation, strict DTO allowlists, sanitized errors/logging, and ignored environment files. This is a backend foundation, not a claim of complete authentication security. Deferred work includes password reset, email verification, MFA, OAuth/SSO, email delivery, distributed rate limiting, session management/logout-all, token-family reuse detection, retention, security-event monitoring, signing-key rotation operations, permission capabilities, and frontend transport/UI design.
+The security review checks public projections, hashed-only refresh persistence, explicit JWT verification, live database authorization, transactional writes, compare-and-swap rotation, strict DTO allowlists, sanitized errors/logging, and ignored environment files. This is a backend foundation, not a claim of complete authentication security. Deferred work includes password reset, email verification, MFA, OAuth/SSO, email delivery, distributed rate limiting, session management/logout-all, token-family reuse detection, retention, security-event monitoring, signing-key rotation operations, permission capabilities, secure cookie transport, and full frontend feature screens.

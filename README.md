@@ -1,6 +1,6 @@
 # PulseDesk
 
-PulseDesk is the foundation for a real-time incident and customer support operations platform. Phase 5B adds tenant-safe, outbox-backed realtime ticket hints and live persisted notifications through authenticated Socket.IO alongside the Phase 4 recoverable SLA engine with Redis, BullMQ, a separate worker, transactional outbox delivery, policy management, and recipient-scoped notifications. Teams, customers, and ticket operations retain explicit lifecycle commands, assignment, staff comments, transactional histories/audits, and tenant-safe pagination. Authentication and live organization authorization remain in place. Frontend product/authentication screens are not implemented.
+PulseDesk is the foundation for a real-time incident and customer support operations platform. Phase 5B adds tenant-safe, outbox-backed realtime ticket hints and live persisted notifications through authenticated Socket.IO alongside the Phase 4 recoverable SLA engine with Redis, BullMQ, a separate worker, transactional outbox delivery, policy management, and recipient-scoped notifications. Teams, customers, and ticket operations retain explicit lifecycle commands, assignment, staff comments, transactional histories/audits, and tenant-safe pagination. Authentication and live organization authorization remain in place. Phase 5C adds frontend sign-in/registration, session refresh, explicit workspace selection, protected application shell, centralized API/realtime clients, and a minimal persisted notification inbox. Full feature screens remain deferred.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ Root `.env` is ignored by Git. The API reads its local `.env` first, then the ro
 
 For local Compose services, set `DATABASE_URL` in your ignored `.env` to `postgresql://pulsedesk:pulsedesk_local@localhost:5432/pulsedesk?schema=public` and `REDIS_URL` to `redis://localhost:6379`. These are local development credentials only. Never reuse them in production.
 
-Next.js reads environment files from `apps/web`, rather than the root. If a future browser integration needs the API URL, set it in `apps/web/.env.local` or export it in the shell. The current home page makes no API requests.
+Next.js reads environment files from `apps/web`, rather than the root. The frontend now calls the API for authentication, verified workspace context, and persisted notifications. Copy `apps/web/.env.example` to ignored `apps/web/.env.local`, or export `NEXT_PUBLIC_API_URL` before building.
 
 ## Local services
 
@@ -82,7 +82,7 @@ pnpm dev
 pnpm worker
 ```
 
-Web: <http://localhost:3000> displays **PulseDesk Web** and **System Ready**. API: <http://localhost:4000/health> returns:
+Web: <http://localhost:3000> redirects to sign-in. Register or sign in, explicitly choose an organization, then enter `/app`. API: <http://localhost:4000/health> returns:
 
 ```json
 { "status": "ok", "service": "pulsedesk-api" }
@@ -90,16 +90,16 @@ Web: <http://localhost:3000> displays **PulseDesk Web** and **System Ready**. AP
 
 This endpoint reports application liveness. `GET /ready` probes PostgreSQL and Redis and returns 503 when a dependency is unavailable. It does not check the separate worker process.
 
-| Root command     | Purpose                                                                |
-| ---------------- | ---------------------------------------------------------------------- |
-| `pnpm dev`       | Start both applications with watch mode                                |
-| `pnpm worker`    | Start the separately built SLA worker                                  |
-| `pnpm build`     | Build shared packages before applications                              |
-| `pnpm lint`      | Run workspace ESLint checks and repository formatting checks           |
-| `pnpm typecheck` | Build dependency types and check application/package types             |
-| `pnpm test`      | Run unit tests and opt-in PostgreSQL/Redis integration tests           |
-| `pnpm format`    | Format repository source and configuration                             |
-| `pnpm clean`     | Remove compiled output and task caches; preserve dependencies and data |
+| Root command     | Purpose                                                                       |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `pnpm dev`       | Start both applications with watch mode                                       |
+| `pnpm worker`    | Start the separately built SLA worker                                         |
+| `pnpm build`     | Build shared packages before applications                                     |
+| `pnpm lint`      | Run workspace ESLint checks and repository formatting checks                  |
+| `pnpm typecheck` | Build dependency types and check application/package types                    |
+| `pnpm test`      | Run frontend/backend unit tests and opt-in PostgreSQL/Redis integration tests |
+| `pnpm format`    | Format repository source and configuration                                    |
+| `pnpm clean`     | Remove compiled output and task caches; preserve dependencies and data        |
 
 Ports: web `3000`, API `4000`, PostgreSQL `5432`, Redis `6379`.
 
@@ -129,12 +129,14 @@ See [the domain model](docs/domain-model.md) for entities, the ER diagram, tenan
 
 Pull requests and pushes to `main` use Node 24 and isolated PostgreSQL and Redis services. CI runs frozen-lockfile installation, Prisma validation/generation, migration deployment/status, lint, type checks, tests (including database constraints), build, and Compose configuration validation. CI does not deploy the application.
 
-The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Authenticated realtime transport is available at `/realtime`, with shared access/session verification, explicit organization selection, and tenant/member rooms. Backend ticket creation/assignment/status/comment events and recipient-only persisted live notifications now use transactional outbox delivery with live recipient revalidation. Presence, a frontend realtime client, incident management, attachments, email ingestion, AI features, and frontend authentication/product screens remain unimplemented. The shared UI still contains only one Button.
+The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Authenticated realtime transport is available at `/realtime`, with shared access/session verification, explicit organization selection, and tenant/member rooms. Backend ticket creation/assignment/status/comment events and recipient-only persisted live notifications now use transactional outbox delivery with live recipient revalidation. The frontend now restores contained browser sessions, coordinates refresh, verifies organization selection, reconciles realtime hints, and shows a minimal shell/inbox. Presence, full dashboard/ticket/customer/team/SLA screens, incident management, attachments, email ingestion, and AI features remain unimplemented. The shared UI still contains only one Button.
 
 See [authentication documentation](docs/authentication.md) for endpoint contracts, configuration, tenant guards, rotation behavior, rate limits, and security limitations. `/auth/context` and `/auth/owner-only` are removable Phase 2 verification endpoints. Authentication uses Argon2id, short-lived HS256 access JWTs, and SHA-256 hashes of opaque refresh tokens. Phase 3 adds only a ticket-number counter and ticket version field; auth/session schema remains unchanged. See [ticket lifecycle and permissions](docs/ticket-lifecycle.md) for API contracts, required `expectedVersion` command preconditions, agent visibility, concurrency, history limits, and audit behavior.
 
 See [the SLA engine guide](docs/sla-engine.md) for worker startup, policy/notification APIs, UTC semantics, idempotency, outage behavior, retention, and manual recovery commands. Policy changes affect new tickets only; no active policy means no SLA.
 
 See [the realtime guide](docs/realtime.md) for handshake authentication, event acknowledgements, organization switching, origin configuration, live revalidation, event contracts, retries/deduplication, reconnect recovery, and the requirement for one API instance until distributed fan-out is implemented.
+
+See [frontend architecture](docs/frontend-architecture.md) for sessionStorage limitations, refresh concurrency, organization isolation, client routing, socket lifecycle, reconciliation, HTTP CORS, and degraded-mode behavior. The frontend uses no cookie auth transport yet.
 
 The lint toolchain currently stays on ESLint 9 because Next.js's React, import, and accessibility plugins declare ESLint 9 compatibility. npm marks this version deprecated; upgrade it when those plugins support ESLint 10. A root pnpm override keeps Nest CLI's transitive webpack dependency compatible with schema-utils' webpack peer requirement.

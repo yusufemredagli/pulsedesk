@@ -1,14 +1,20 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
+import { ApplicationProvider } from '../features/application/provider';
 export const metadata: Metadata = {
-  title: 'PulseDesk Web',
-  description: 'PulseDesk infrastructure readiness',
+  title: {
+    default: 'PulseDesk — Support operations',
+    template: '%s | PulseDesk',
+  },
+  description: 'A focused workspace for coordinated support operations.',
 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ApplicationProvider>{children}</ApplicationProvider>
+      </body>
     </html>
   );
 }

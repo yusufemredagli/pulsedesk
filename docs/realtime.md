@@ -1,6 +1,6 @@
 # Authenticated realtime delivery — Phases 5A and 5B
 
-The API hosts an authenticated Socket.IO namespace at `/realtime`, on its existing HTTP port using the `/socket.io/` path and WebSocket transport only. Phase 5B adds outbox-backed ticket hints and live delivery of persisted notifications. PostgreSQL remains authoritative. No ticket mutations are accepted over Socket.IO, and no frontend client/UI, presence, typing, or incident features are implemented.
+The API hosts an authenticated Socket.IO namespace at `/realtime`, on its existing HTTP port using the `/socket.io/` path and WebSocket transport only. Phase 5B adds outbox-backed ticket hints and live delivery of persisted notifications. PostgreSQL remains authoritative. No ticket mutations are accepted over Socket.IO, and Phase 5C now provides the [frontend client/shell](frontend-architecture.md); presence, typing, and incident features remain unimplemented.
 
 ## Authentication and organization selection
 
@@ -119,6 +119,6 @@ Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. Export a dedic
 
 Built-process verification starts the API and separate SLA worker with disposable PostgreSQL and isolated Redis, connects two organization clients, checks creation/assignment/status/minimal comments, observes a real worker-produced SLA notification, and verifies membership removal after join.
 
-Deferred work includes frontend auth/dashboard/socket client, presence/typing, incidents, customer portal, email/SMS, realtime mutations, Redis fan-out, replay/offset recovery, per-event abuse controls, and automated quarantine tooling.
+Deferred work includes full frontend feature screens, presence/typing, incidents, customer portal, email/SMS, realtime mutations, Redis fan-out, replay/offset recovery, per-event abuse controls, and automated quarantine tooling.
 
 See [Socket.IO delivery guarantees](https://socket.io/docs/v4/delivery-guarantees/) and [room semantics](https://socket.io/docs/v4/rooms/).
