@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -61,6 +62,8 @@ test(
       new ConfigService({ DATABASE_URL: databaseUrl }),
     );
     const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(RealtimeDispatchRuntime)
+      .useValue({})
       .overrideProvider(PrismaService)
       .useValue(db)
       .compile();

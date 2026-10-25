@@ -1,3 +1,4 @@
+import { RealtimeEmitter } from './realtime-emitter.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -38,10 +39,12 @@ export class RealtimeGateway
   @WebSocketServer() server!: RealtimeNamespace;
   private readonly logger = new Logger(RealtimeGateway.name);
   constructor(
+    @Inject(RealtimeEmitter) private readonly emitter: RealtimeEmitter,
     @Inject(RealtimeAuthService) private readonly auth: RealtimeAuthService,
     @Inject(RealtimeRoomService) private readonly rooms: RealtimeRoomService,
   ) {}
   afterInit(server: RealtimeNamespace): void {
+    this.emitter.attach(server);
     server.use((socket: RealtimeSocket, next) => {
       void this.auth
         .authenticate(socket)

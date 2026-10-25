@@ -193,6 +193,7 @@ model Ticket {
   comments         TicketComment[]
   statusHistory    TicketStatusHistory[]
   slaEvents        SlaEvent[]
+  outboxEvents     OutboxEvent[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, ticketNumber])
@@ -311,6 +312,9 @@ model Notification {
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   recipientMember   OrganizationMember @relation(fields: [organizationId, recipientMemberId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
 
+  outboxEvents OutboxEvent[]
+
+  @@unique([organizationId, id])
   @@index([organizationId, recipientMemberId, readAt, createdAt, id])
 }
 
@@ -353,21 +357,36 @@ model OrganizationTicketCounter {
 enum OutboxEventType {
   SLA_EVENT_SCHEDULED
   SLA_EVENT_COMPLETED
+  TICKET_CREATED
+  TICKET_UPDATED
+  TICKET_ASSIGNED
+  TICKET_STATUS_CHANGED
+  TICKET_COMMENT_ADDED
+  NOTIFICATION_CREATED
 }
 
 model OutboxEvent {
   id             String          @id @default(uuid()) @db.Uuid
   organizationId String          @db.Uuid
-  slaEventId     String          @db.Uuid
+  slaEventId     String?         @db.Uuid
+  ticketId       String?         @db.Uuid
+  notificationId String?         @db.Uuid
+  payload        Json?
   type           OutboxEventType
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   processedAt    DateTime?       @db.Timestamptz(3)
+  failedAt       DateTime?       @db.Timestamptz(3)
   nextAttemptAt  DateTime        @default(now()) @db.Timestamptz(3)
   attempts       Int             @default(0)
   lastError      String?         @db.VarChar(100)
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  slaEvent       SlaEvent        @relation(fields: [organizationId, slaEventId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  slaEvent       SlaEvent?       @relation(fields: [organizationId, slaEventId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
 
+  ticket         Ticket?         @relation(fields: [organizationId, ticketId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  notification   Notification?   @relation(fields: [organizationId, notificationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([notificationId, type])
+  @@index([type, processedAt, failedAt, nextAttemptAt, createdAt, id], map: "OutboxEvent_delivery_pending_idx")
   @@unique([slaEventId, type])
   @@index([processedAt, nextAttemptAt, createdAt, id])
   @@index([organizationId])

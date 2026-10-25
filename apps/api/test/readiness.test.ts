@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -8,6 +9,8 @@ import { RedisService } from '../src/infrastructure/redis/redis.service';
 test('readiness checks dependencies and liveness stays healthy during a Redis outage', async () => {
   let unavailable = false;
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(RealtimeDispatchRuntime)
+    .useValue({})
     .overrideProvider(PrismaService)
     .useValue({ $queryRaw: async () => [{ value: 1 }] })
     .overrideProvider(RedisService)

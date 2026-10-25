@@ -19,6 +19,9 @@ export class RealtimeRoomService {
   }
   async clear(socket: RealtimeSocket): Promise<string | null> {
     const previous = socket.data.tenant;
+    if (socket.connected)
+      socket.data.tenantRevision = (socket.data.tenantRevision ?? 0) + 1;
+    else delete socket.data.tenantRevision;
     delete socket.data.tenant;
     if (previous)
       for (const name of this.names(previous)) await socket.leave(name);
@@ -52,6 +55,7 @@ export class RealtimeRoomService {
   async revalidate(socket: RealtimeSocket): Promise<TenantContext> {
     const previous = socket.data.tenant;
     if (!previous || !socket.connected) throw new ForbiddenException();
+    const revision = socket.data.tenantRevision;
     try {
       const current = await this.auth.membership(
         socket,
@@ -59,14 +63,15 @@ export class RealtimeRoomService {
       );
       if (
         !socket.connected ||
-        socket.data.tenant !== previous ||
+        socket.data.tenantRevision !== revision ||
+        socket.data.tenant?.organizationId !== previous.organizationId ||
         current.membershipId !== previous.membershipId
       )
         throw new ForbiddenException();
       socket.data.tenant = Object.freeze(current);
       return current;
     } catch (error) {
-      await this.clear(socket);
+      if (socket.data.tenantRevision === revision) await this.clear(socket);
       throw error;
     }
   }
@@ -76,5 +81,6 @@ export class RealtimeRoomService {
     delete socket.data.identity;
     delete socket.data.tenant;
     delete socket.data.busy;
+    delete socket.data.tenantRevision;
   }
 }

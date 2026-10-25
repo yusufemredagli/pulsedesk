@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -7,6 +8,8 @@ import { AppModule } from '../src/app.module';
 import { validateEnvironment } from '../src/config/environment';
 test('GET /health returns the service readiness contract', async () => {
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(RealtimeDispatchRuntime)
+    .useValue({})
     .overrideProvider(PrismaService)
     .useValue({})
     .compile();

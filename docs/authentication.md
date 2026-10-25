@@ -1,6 +1,6 @@
 # Authentication and organization authorization — Phase 2
 
-The backend now provides password authentication, revocable sessions, live organization context, and explicit role checks. Phase 3 now provides [team/customer/ticket APIs](ticket-lifecycle.md) using these guards. Phase 4 adds the [SLA worker](sla-engine.md), and Phase 5A adds [authenticated realtime transport](realtime.md), sharing `AccessTokenService` with the HTTP bearer guard. Frontend authentication screens, incident operations, email delivery, and realtime domain broadcasts remain unimplemented. Phase 3 changes ticket numbering/versioning only; the authentication/session schema remains unchanged. Swagger was not previously installed and is not added.
+The backend now provides password authentication, revocable sessions, live organization context, and explicit role checks. Phase 3 now provides [team/customer/ticket APIs](ticket-lifecycle.md) using these guards. Phase 4 adds the [SLA worker](sla-engine.md), and Phase 5A adds [authenticated realtime transport](realtime.md), sharing `AccessTokenService` with the HTTP bearer guard. Frontend authentication screens, incident operations, and email delivery remain unimplemented. Phase 5B adds outbox-backed realtime hints with session/member revalidation before delivery. Phase 3 changes ticket numbering/versioning only; the authentication/session schema remains unchanged. Swagger was not previously installed and is not added.
 
 ## API contract
 

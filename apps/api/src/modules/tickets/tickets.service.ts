@@ -1,3 +1,4 @@
+import { recordTicketChange } from '../../infrastructure/outbox/realtime-records';
 import { SlaService } from '../sla/sla.service';
 import { Clock } from '../../common/clock.module';
 import {
@@ -72,6 +73,16 @@ export class TicketsService {
           ticketNumber: numbers[0].lastNumber,
         },
       });
+      await recordTicketChange(
+        tx,
+        ticket,
+        {
+          type: 'TICKET_CREATED',
+          status: ticket.status,
+          priority: ticket.priority,
+        },
+        ticket.createdAt,
+      );
       await this.sla.create(tx, ticket);
       await this.history(tx, context, ticket.id, null, 'OPEN');
       await audit(tx, context, 'TICKET_CREATED', 'Ticket', ticket.id, {
@@ -301,6 +312,31 @@ export class TicketsService {
         id,
         { assignedMemberId, assignedTeamId },
       );
+      const next = { ...ticket, version: ticket.version + 1 };
+      await recordTicketChange(
+        tx,
+        next,
+        {
+          type: 'TICKET_ASSIGNED',
+          assignedMemberId,
+          assignedTeamId,
+          previousMemberId: ticket.assignedMemberId,
+          previousTeamId: ticket.assignedTeamId,
+        },
+        this.clock.now(),
+      );
+      if (ticket.status !== 'ASSIGNED')
+        await recordTicketChange(
+          tx,
+          next,
+          {
+            type: 'TICKET_STATUS_CHANGED',
+            fromStatus: ticket.status,
+            toStatus: 'ASSIGNED',
+            actorMemberId: context.membershipId,
+          },
+          this.clock.now(),
+        );
       return this.mapped(tx, context, id);
     });
   }
@@ -331,6 +367,17 @@ export class TicketsService {
         fromStatus: rule.from,
         toStatus: rule.to,
       });
+      await recordTicketChange(
+        tx,
+        { ...ticket, version: ticket.version + 1 },
+        {
+          type: 'TICKET_STATUS_CHANGED',
+          fromStatus: rule.from,
+          toStatus: rule.to,
+          actorMemberId: context.membershipId,
+        },
+        at,
+      );
       return this.mapped(tx, context, id);
     });
   }
@@ -357,13 +404,24 @@ export class TicketsService {
         fromStatus: ticket.status,
         toStatus: 'CANCELLED',
       });
+      await recordTicketChange(
+        tx,
+        { ...ticket, version: ticket.version + 1 },
+        {
+          type: 'TICKET_STATUS_CHANGED',
+          fromStatus: ticket.status,
+          toStatus: 'CANCELLED',
+          actorMemberId: context.membershipId,
+        },
+        this.clock.now(),
+      );
       return this.mapped(tx, context, id);
     });
   }
   comment(context: TenantContext, id: string, input: CreateCommentDto) {
     return this.transactions.run(context, OPERATORS, async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Ticket" WHERE "organizationId"=${context.organizationId}::uuid AND "id"=${id}::uuid FOR SHARE`;
-      await this.current(tx, context, id);
+      const ticket = await this.current(tx, context, id);
       const comment = await tx.ticketComment.create({
         data: {
           organizationId: context.organizationId,
@@ -380,6 +438,17 @@ export class TicketsService {
         commentId: comment.id,
         visibility: comment.visibility,
       });
+      await recordTicketChange(
+        tx,
+        ticket,
+        {
+          type: 'TICKET_COMMENT_ADDED',
+          commentId: comment.id,
+          visibility: comment.visibility,
+          authorMemberId: context.membershipId,
+        },
+        comment.createdAt,
+      );
       return {
         id: comment.id,
         body: comment.body,

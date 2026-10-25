@@ -1,3 +1,4 @@
+import { createNotifications } from '../../infrastructure/outbox/realtime-records';
 import { Inject, Injectable } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -71,8 +72,9 @@ export class SlaDeadlineService {
           : 'Resolution SLA breached';
         const reference = `PD-${String(ticket.ticketNumber).padStart(6, '0')}`;
         if (recipients.length)
-          await tx.notification.createMany({
-            data: recipients.map((recipient) => ({
+          await createNotifications(
+            tx,
+            recipients.map((recipient) => ({
               organizationId: event.organizationId,
               recipientMemberId: recipient.id,
               type: first
@@ -83,7 +85,7 @@ export class SlaDeadlineService {
               entityType: 'Ticket',
               entityId: ticket.id,
             })),
-          });
+          );
         await tx.auditLog.create({
           data: {
             organizationId: event.organizationId,

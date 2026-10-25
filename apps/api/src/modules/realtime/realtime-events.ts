@@ -1,3 +1,7 @@
+import type { DomainPayloads } from './realtime-domain-events';
+type DomainServerEvents = {
+  [K in keyof DomainPayloads]: (payload: DomainPayloads[K]) => void;
+};
 import type { TenantContext } from '../auth/types/request-context';
 export const REALTIME = {
   NAMESPACE: '/realtime',
@@ -30,7 +34,7 @@ export interface ClientEvents {
   ) => void;
   'organization:leave': (ack: (result: LeaveResult) => void) => void;
 }
-export interface ServerEvents {
+export interface ServerEvents extends DomainServerEvents {
   'connection:ready': (payload: { ok: true }) => void;
   'organization:joined': (payload: Joined) => void;
   'organization:left': (payload: Left) => void;

@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -8,6 +9,8 @@ import { PrismaService } from '../src/infrastructure/database/prisma.service';
 
 test('real Nest rate limiter protects login, registration, and refresh', async () => {
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(RealtimeDispatchRuntime)
+    .useValue({})
     .overrideProvider(PrismaService)
     .useValue({})
     .overrideProvider(AuthService)

@@ -162,6 +162,10 @@ Tests inject a fixed UTC clock for deadlines, completion, outbox retry, concurre
 
 Separate built-process smoke verification exercises API registration, policy/ticket creation, delayed jobs, PUBLIC completion, RESOLVED completion, a test-only accelerated persisted deadline, notification delivery, readiness, and graceful worker SIGTERM. The public policy API intentionally does not accept fractional minutes just to shorten tests.
 
-Deferred work includes distributed rate limiting, queue dashboards/metrics/alerts, automated disaster-recovery orchestration, business calendars, SLA pause/resume, priority edits/reopening semantics, email/SMS/WebSocket delivery, incident workflows, and frontend notification screens.
+Deferred work includes distributed rate limiting, queue dashboards/metrics/alerts, automated disaster-recovery orchestration, business calendars, SLA pause/resume, priority edits/reopening semantics, email/SMS delivery, incident workflows, and frontend notification screens.
 
 BullMQ configuration follows its [connection guidance](https://docs.bullmq.io/guide/connections), [custom job-ID constraints](https://docs.bullmq.io/guide/jobs/job-ids), and [graceful worker shutdown](https://docs.bullmq.io/guide/workers/graceful-shutdown).
+
+## Phase 5B persisted live notifications
+
+Breach processing now uses `createNotifications(tx, data)` to insert each notification and its own `NOTIFICATION_CREATED` outbox row in the same breach transaction. A failure rolls back notifications, delivery records, breach timestamp, and audit together. The SLA worker never calls Socket.IO. Its dispatcher claims only SLA scheduling/completion types; the API-owned realtime dispatcher separately claims notification/ticket types, so their processed states cannot compete. Notification delivery validates the current session/member and targets only the persisted recipient's member room. An offline recipient recovers from the existing notification HTTP inbox; no socket replay is promised. See [realtime delivery](realtime.md) for retry/duplication semantics, scaling, and revocation behavior.

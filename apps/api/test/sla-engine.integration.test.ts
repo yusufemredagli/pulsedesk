@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import { QueueRecovery } from '../src/worker/queue-recovery.service';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -79,6 +80,8 @@ test(
       imports: [AppModule, DatabaseModule, QueueModule, ClockModule],
       providers: [SlaDeadlineService, OutboxDispatcher, QueueRecovery],
     })
+      .overrideProvider(RealtimeDispatchRuntime)
+      .useValue({})
       .overrideProvider(PrismaService)
       .useValue(db)
       .overrideProvider(Clock)
@@ -304,6 +307,7 @@ test(
           assert.equal(
             await db.outboxEvent.count({
               where: {
+                type: { in: ['SLA_EVENT_SCHEDULED', 'SLA_EVENT_COMPLETED'] },
                 organizationId: owner.organizationId,
                 slaEventId: { in: initial.map((row) => row.id) },
               },
@@ -569,7 +573,10 @@ test(
           );
           assert.equal(
             await db.outboxEvent.count({
-              where: { slaEventId: event.id, type: 'SLA_EVENT_COMPLETED' },
+              where: {
+                slaEventId: event.id,
+                type: 'SLA_EVENT_COMPLETED',
+              },
             }),
             1,
           );
@@ -934,13 +941,18 @@ test(
           );
           assert.equal(
             await db.outboxEvent.count({
-              where: { slaEventId: pending.id, processedAt: null },
+              where: {
+                type: { in: ['SLA_EVENT_SCHEDULED', 'SLA_EVENT_COMPLETED'] },
+                slaEventId: pending.id,
+                processedAt: null,
+              },
             }),
             1,
           );
           assert.ok(
             (await db.outboxEvent.count({
               where: {
+                type: { in: ['SLA_EVENT_SCHEDULED', 'SLA_EVENT_COMPLETED'] },
                 organizationId: owner.organizationId,
                 processedAt: { not: null },
               },

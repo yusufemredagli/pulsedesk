@@ -48,7 +48,12 @@ export class QueueRecovery {
       OutboxEvent[]
     >`SELECT o.* FROM "OutboxEvent" o JOIN "SlaEvent" s ON s."id"=o."slaEventId" AND s."organizationId"=o."organizationId" JOIN "Ticket" t ON t."id"=s."ticketId" AND t."organizationId"=s."organizationId" WHERE (${after}::uuid IS NULL OR o."id">${after}::uuid) AND s."breachedAt" IS NULL AND t."status"<>'CANCELLED' AND ((o."type"='SLA_EVENT_SCHEDULED' AND s."completedAt" IS NULL) OR (o."type"='SLA_EVENT_COMPLETED' AND s."completedAt">s."dueAt")) ORDER BY o."id" LIMIT 100`;
     for (const row of rows) {
-      const existing = await queue.getJob(jobId(row.slaEventId, row.type));
+      const existing = await queue.getJob(
+        jobId(
+          row.slaEventId!,
+          row.type as import('../infrastructure/outbox/outbox-types').SlaOutboxType,
+        ),
+      );
       if (existing && (await existing.getState()) === 'failed')
         await existing.remove();
       await this.db.outboxEvent.update({

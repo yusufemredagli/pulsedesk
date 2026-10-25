@@ -1,101 +1,124 @@
-# Authenticated realtime transport — Phase 5A
+# Authenticated realtime delivery — Phases 5A and 5B
 
-The NestJS API hosts a Socket.IO namespace at `/realtime` on its existing HTTP port, using the `/socket.io/` transport path. Only WebSocket transport is enabled. The gateway authenticates connections and manages one explicitly selected organization context per socket. No ticket broadcasts, notification delivery, presence, frontend realtime client, incident behavior, or Redis adapter is implemented.
+The API hosts an authenticated Socket.IO namespace at `/realtime`, on its existing HTTP port using the `/socket.io/` path and WebSocket transport only. Phase 5B adds outbox-backed ticket hints and live delivery of persisted notifications. PostgreSQL remains authoritative. No ticket mutations are accepted over Socket.IO, and no frontend client/UI, presence, typing, or incident features are implemented.
 
-## Connection and authentication
+## Authentication and organization selection
 
-A Socket.IO client supplies `auth: { token: accessToken }`. This is a Socket.IO connection, not a raw WebSocket JSON protocol. Query-string tokens and client-supplied user IDs, roles, room names, and tenant claims are not accepted as authentication. The handshake auth object allows exactly the `token` field; an Authorization-header fallback is intentionally not supported.
+Clients connect using `auth: { token: accessToken }`. Query-string tokens, arbitrary rooms, and client-provided user/role claims are not accepted. The handshake allows exactly the token field. The shared `AccessTokenService` verifies HS256, issuer, audience, expiry, issuance field, UUID identities, and the live unrevoked/unexpired refresh-session row for an active user. HTTP and realtime use the same verifier. The raw handshake token is cleared; only a server-verified identity is retained. Access expiry disconnects the socket and releases local context/timers. Refresh through HTTP, reconnect with replacement credentials, and select an organization again.
+
+`connection:ready` confirms authenticated transport, without automatically selecting any organization. `organization:join` accepts exactly `{ organizationId: UUID }`, rechecks session and current membership/role, and joins server-generated organization/member rooms. Unknown and inaccessible organizations have identical denial responses. Each socket selects one organization; separate sockets may select independently.
+
+Switching first leaves previous rooms and clears context. Success emits `organization:left` followed by `organization:joined`; a failed switch leaves no active tenant. `organization:leave` is idempotent. Join/leave operations are bounded to one in flight per socket; competitors receive `BUSY`. Disconnect during lookup cannot restore context. A selection revision invalidates in-flight emissions when a switch occurs, while concurrent role revalidations can safely coexist. Cleanup performs no database presence writes.
+
+Join acknowledgement success is `{ ok: true, organizationId, membershipId, role }`; failure is `{ ok: false, code, message }`. Leave returns `{ ok: true, organizationId }`, using null when no context was selected. Codes are `INVALID_REQUEST`, `UNAUTHENTICATED`, `ACCESS_DENIED`, `BUSY`, and `UNAVAILABLE`, with fixed sanitized messages. Clients should use acknowledgement timeouts. `error` is the reserved server error contract, currently used for access expiry.
 
 ```ts
-// Protocol example for a future client; no frontend dependency is added.
+// Future client protocol example; no frontend package is installed.
 const socket = io('http://localhost:4000/realtime', {
   transports: ['websocket'],
   auth: { token: accessToken },
 });
-socket.on('connection:ready', ({ ok }) => {
+socket.on('connection:ready', () => {
   socket.emit('organization:join', { organizationId }, (result) => {
-    // result is a verified context or a sanitized failure.
+    // On success, fetch current HTTP state before applying subsequent hints.
   });
+});
+socket.on('ticket:status-changed', (hint) => {
+  // Deduplicate hint.eventId and reconcile through HTTP.
 });
 ```
 
-`AccessTokenService` is shared by the HTTP bearer guard and realtime authentication. It verifies HS256, issuer `pulsedesk-api`, audience `pulsedesk-web`, expiry, issuance field, and UUID `sub`/`sid`, then resolves the live, unrevoked, unexpired refresh-session row belonging to an active user. JWT validity alone never grants connection or organization access. Missing, malformed, expired, revoked, mismatched, inactive, or deleted identities are rejected through Socket.IO `connect_error` with safe error data. Unexpected dependency errors use a generic unavailable result and fixed logs without tokens, request payloads, exception objects, or database details.
+## Transactional domain events
 
-The socket retains only a server-verified identity `{ userId, sessionId, expiresAt }`; the raw handshake token is cleared after authentication. Access expiry disconnects the socket and clears its context. There is no in-place token refresh event: obtain replacement credentials through the existing HTTP refresh contract and reconnect. Refresh rotation immediately makes the old session fail the next live check. There is no push-based logout/membership revocation subscription in this phase; an idle connected socket can remain until access expiry, with no domain broadcasts being delivered.
+Domain services depend only on persistence helpers under `infrastructure/outbox`; they never call Socket.IO or import the gateway. Ticket creation, assignment/reassignment, lifecycle transitions (including cancellation), and comments write minimal realtime outbox snapshots in the same transaction as business state, histories, and audits. A stale `expectedVersion`, illegal command, audit failure, or outbox failure rolls back the transaction and produces no committed event. Initial assignment emits both assignment and status-change records because it also transitions to ASSIGNED; reassignment emits only assignment.
+
+`createNotifications(tx, data)` creates notification rows and one `NOTIFICATION_CREATED` outbox row per persisted notification atomically. SLA breach processing uses this helper inside its existing idempotent breach transaction. Future application notification writers must use it; arbitrary external SQL inserts do not automatically create delivery rows. Mark-read updates an existing notification and emits no new notification.
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Gateway
-    participant Auth as Shared access verifier
-    participant DB as PostgreSQL
-    Client->>Gateway: Socket.IO handshake auth.token
-    Gateway->>Auth: Verify access JWT
-    Auth->>DB: Resolve live session and active user
-    alt Invalid credentials or unavailable dependency
-        Gateway-->>Client: connect_error with sanitized data
-    else Authenticated
-        Gateway-->>Client: connection:ready
-        Client->>Gateway: organization:join with organizationId
-        Gateway->>Gateway: Leave previous tenant rooms
-        Gateway->>Auth: Revalidate session
-        Auth->>DB: Resolve current membership and role
-        alt No accessible membership
-            Gateway-->>Client: Failure acknowledgement, no tenant rooms
-        else Verified membership
-            Gateway->>Gateway: Join generated organization/member rooms
-            Gateway-->>Client: organization:joined and success acknowledgement
-        end
-    end
+    participant API as HTTP domain service
+    participant PG as PostgreSQL
+    participant Dispatch as API realtime dispatcher
+    participant Socket as Socket.IO transport
+    participant Recipient
+    Client->>API: Authorized ticket command
+    API->>PG: Transaction: mutation + history/audit + realtime outbox
+    PG-->>API: Commit
+    API-->>Client: HTTP response
+    Dispatch->>PG: Lock committed realtime row, SKIP LOCKED
+    Dispatch->>PG: Read persisted source and live recipient authorization
+    Dispatch->>Socket: Emit minimal hint to validated room candidates
+    Socket-->>Recipient: Versioned event with stable eventId
+    Dispatch->>PG: Mark transport processed
+    Recipient->>API: Re-fetch authoritative state through HTTP
 ```
 
-## Organization selection and event contracts
+## Outbox channels and dispatcher ownership
 
-Connections initially join only Socket.IO's private socket-ID room. They do not automatically select a tenant, even for users with one membership. `organization:join` requires exactly `{ organizationId: UUID }`, with no extra fields, arrays, null, or arbitrary room strings.
+The existing `OutboxEvent` table now supports explicit delivery purposes. `SLA_EVENT_SCHEDULED` and `SLA_EVENT_COMPLETED` remain ID-only sources for the separate BullMQ worker. Ticket realtime rows have a tenant-scoped ticket reference and minimal immutable JSON snapshot. Notification realtime rows reference the persisted notification; the delivery mapper reads its intended public fields. One source row has one destination purpose and one processed state. SLA scheduling and realtime delivery never share a processed flag on the same row.
 
-Each join rechecks the live session and queries the current membership/active user. The current database role is authoritative. Unknown and inaccessible organizations return the same `ACCESS_DENIED` response. The response intentionally includes no cross-tenant existence information.
+The SLA dispatcher explicitly claims only its two event types. The realtime dispatcher explicitly claims ticket/notification types and runs in the **API process owning Socket.IO**, not in the SLA worker. No Socket.IO calls occur in the SLA worker. Starting the API starts its modest outbox interval; no additional realtime process or container is required. `OUTBOX_POLL_INTERVAL_MS` is shared with existing outbox infrastructure, defaulting to 2000 milliseconds.
 
-| Event                 | Direction and payload                                                     |
-| --------------------- | ------------------------------------------------------------------------- |
-| `connection:ready`    | Server → client, `{ ok: true }`, authenticated transport only             |
-| `organization:join`   | Client → server, `{ organizationId }`, with acknowledgement               |
-| `organization:joined` | Server → client, same verified context as successful join acknowledgement |
-| `organization:leave`  | Client → server, no payload, with acknowledgement                         |
-| `organization:left`   | Server → client, `{ ok: true, organizationId: UUID \| null }`             |
-| `error`               | Reserved server error contract, currently used on access expiry           |
+Each dispatcher claims at most 25 rows per tick using `FOR UPDATE SKIP LOCKED`, with a transaction per row. The row remains locked until transport acceptance and processed marking, preventing concurrent dispatchers from knowingly delivering the same pending row. Dispatch cycles do not overlap within a runtime. PostgreSQL transaction timeout for realtime delivery is 15 seconds; long/failed operations remain retryable. Recipient validation adds database work proportional to connected room candidates, so monitor delivery latency and pool pressure as connection counts grow. This is an initial single-instance engine, not a high-volume fan-out service.
 
-Join success is `{ ok: true, organizationId, membershipId, role }`. Failure is `{ ok: false, code, message }`. Codes are `INVALID_REQUEST`, `UNAUTHENTICATED`, `ACCESS_DENIED`, `BUSY`, and `UNAVAILABLE`; messages are fixed and do not contain database errors or token internals. Leave success is `{ ok: true, organizationId }`, with null for an already unselected socket. Clients must use Socket.IO acknowledgement timeouts to handle disconnection or transport loss.
+The transport abstraction `RealtimeEmitter` receives its namespace through gateway initialization, without a static/global server. An unavailable transport or meaningful delivery/database failure preserves the source row with `REALTIME_DELIVERY_FAILED`, increments attempts, and exponentially backs off from one second to five minutes. Transient retries have no finite attempt ceiling. Unknown/malformed snapshot contracts are quarantined using `failedAt` and `INVALID_REALTIME_EVENT`; they remain unprocessed and retained for operator investigation. Logs include only event UUID, explicit type, destination category, and fixed error code. Payloads, credentials, raw errors, and database details are not logged.
 
-One socket has one active organization. Switching first clears the previous context and leaves its organization/member rooms, then validates the requested organization. A successful switch emits `organization:left` before `organization:joined`. A failed switch leaves the socket authenticated but without any tenant context or tenant rooms. Rejoining revalidates role/membership rather than trusting the cached role. Separate tabs/connections may independently select different organizations.
+To recover a quarantined row, investigate/fix its source contract, then deliberately clear `failedAt` and `lastError` and set `nextAttemptAt` to the current time for that specific row through controlled database administration. Do not mark it processed to hide a failure. There is no public recovery HTTP endpoint. Existing `worker:recover` commands remain SLA-only.
 
-A per-socket in-flight flag permits one context operation at a time; concurrent joins/leaves return `BUSY` rather than building an unbounded promise queue. Disconnect during a membership lookup cannot restore context or room membership. Disconnect removes expiry timers and local identity/tenant state and relies on Socket.IO to remove adapter room memberships. It performs no database writes or persisted presence updates.
+Successful transport handoff counts as processed even if there are no currently connected/authorized recipients. There is no client-receipt acknowledgement requirement or offline inbox replay over Socket.IO. Processed realtime rows older than seven days are deleted in batches of at most 1000 per tick. Pending failures and quarantined rows are preserved and require operational monitoring; outages can grow this retained backlog. SLA source retention/recovery semantics remain separate and unchanged.
 
-## Internal rooms and future authorization
+Shutdown stops the interval, waits for in-flight dispatch, detaches the transport, then closes Socket.IO/Redis/Prisma through existing lifecycle hooks. Forced death can replay a delivery, as described below.
 
-`RealtimeRoomService` generates `org:<organizationUUID>` and `member:<membershipUUID>` internally. Membership UUIDs refer to organization membership, not global users. Room names are an internal implementation detail, never accepted as public join parameters. No generic join-room handler exists, and successful responses do not expose room names.
+## Public contracts and serialization
 
-The verified local context is `{ userId, organizationId, membershipId, role }`. It is a snapshot, not permanent authorization. `RealtimeRoomService.revalidate(socket)` rechecks session, active user, current membership, and current role; invalid authorization clears tenant rooms/context. Future sensitive actions must call this helper before executing and apply their explicit role/domain permissions. HTTP `expectedVersion` and transactional domain authorization remain authoritative for future mutations.
+Every domain hint contains `schemaVersion: 1`, stable `eventId` (the outbox UUID), `organizationId`, and `occurredAt` as an ISO 8601 UTC string. Ticket hints also contain `ticketId`, `ticketNumber`, and workflow `version`.
 
-Future sensitive emissions must also revalidate each intended recipient before delivery, or implement an equivalent tested invalidation mechanism. Direct `server.to(orgRoom).emit(...)` based only on historic room membership would permit stale recipients after logout, role changes, or membership removal and is not an authorized broadcast architecture. This phase deliberately exports the revalidation service without introducing a ticket/notification broadcast method. Room membership itself cannot make later operations immune to concurrent membership changes; sensitive transactional writes still need in-transaction authorization, and future delivery requires an explicit race policy.
+| Event                   | Additional fields                                                          | Current behavior                                              |
+| ----------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `ticket:created`        | `status`, `priority`                                                       | Ticket creation                                               |
+| `ticket:updated`        | None beyond common ticket fields                                           | Reserved; no generic editable-field mutation currently exists |
+| `ticket:assigned`       | `assignedMemberId`, `assignedTeamId`, `previousMemberId`, `previousTeamId` | Initial assignment/reassignment; nullable identifiers         |
+| `ticket:status-changed` | `fromStatus`, `toStatus`, `actorMemberId`                                  | Successful lifecycle transitions                              |
+| `ticket:comment-added`  | `commentId`, `visibility`, `authorMemberId`                                | PUBLIC and INTERNAL staff comments                            |
+| `notification:new`      | `notificationId`, `type`, `title`, `message`, `createdAt`                  | Persisted notification creation; member-only                  |
 
-## Origins, transport limits, and deployment
+Comments never include their bodies. Ticket subjects, descriptions, customer objects, histories, hashes, tokens, and unrestricted audit metadata are absent. Payloads use explicit whitelist mappers and enum/UUID/integer/date validation; unknown snapshot fields are rejected rather than serialized. Notifications intentionally include the same concise title/message intended for their recipient. No raw Prisma object, Decimal, BigInt, or Date object is emitted.
 
-`FRONTEND_ORIGINS` is a comma-separated list of exact origins, for example `http://localhost:3000` locally or `https://desk.example.com` in production. Development/test defaults to localhost:3000. Production must configure an explicit nonempty HTTPS list. Wildcards, credentials, paths, trailing slashes, and the browser `null` origin are rejected. Startup validates the setting rather than silently permitting all origins.
+## Room targeting and live authorization
 
-`configureRealtime(app)` installs the custom Nest Socket.IO adapter before listening; custom application bootstraps and integration tests must call the same helper. The gateway defaults to denying upgrades if that adapter setup is omitted. The adapter enforces the origin allowlist through `allowRequest` on WebSocket upgrades as well as CORS configuration. CORS headers alone do not protect WebSocket connections. Native clients without an Origin header are permitted but must still provide valid credentials; an Origin header is not authentication and can be forged by non-browser clients.
+`org:<organizationUUID>` and `member:<membershipUUID>` are internal server-generated rooms, never client parameters. The emitter takes their current local socket IDs as **candidates**, then validates each recipient and emits individually. It never authorizes a bulk room emit using stale room membership.
 
-The transport rejects packets above 8192 bytes and disconnects the connection; the namespace connection timeout is ten seconds. Request schemas reject unexpected fields. There is no complex per-event/IP/account limiter yet. Configure deployment connection limits, TLS, proxy upgrade support, and operational monitoring; keep API access-token responses out of logs. Per-event rate limits and connection/session caps remain future work.
+Before each domain hint, `RealtimeRoomService.revalidate(socket)` checks live session, active user, current membership, and current role. Removed memberships lose tenant rooms/context; revoked/expired sessions and inactive users are disconnected on a relevant emission. Ticket candidates additionally pass the existing `accessibleTickets` policy against current persisted state: AGENTs see only their assigned tickets or current teams' tickets; other current staff roles retain existing HTTP visibility. Team removal and role changes therefore affect the next relevant emission without reconnecting. Previously assigned agents do not receive later hints for tickets they can no longer read.
 
-The default in-memory adapter is **single-instance only**. Rooms, context, and expiry timers do not coordinate across replicas. Redis already used by the SLA worker does not automatically distribute Socket.IO events. Horizontal scaling needs a future Socket.IO Redis adapter and a reviewed strategy for cross-node authorization/invalidation and connection routing. Connection-state recovery is not enabled, so reconnects always authenticate and explicitly select a tenant again.
+Notifications target only the persisted recipient's member room, with live organization/membership/session checks. They are never broadcast to the whole organization or team. Current selection, membership ID, connected state, and selection revision are checked after asynchronous lookups so an organization switch cannot receive the old context's in-flight event.
 
-`/health` and `/ready` retain their current semantics. Gateway initialization logs startup; registration or adapter initialization failure propagates through API startup. There is no separate fabricated realtime health flag, and readiness does not claim distributed delivery or client connectivity.
+Authorization is sampled immediately before emission; a concurrent membership change immediately after a database read can still race a send. There is no distributed atomic transaction spanning authorization and network receipt. Future stronger revocation guarantees would require explicit synchronization/invalidation. Idle sockets are not actively watched for database revocation, but are untrusted until revalidation and disconnect at access expiry; no future domain hint relies on the original cached role alone. Dependency failures fail closed, may clear local context, and require the client to reconnect/reselect and re-fetch.
 
-## Verification and scope
+## Duplication, ordering, and reconnects
 
-Run the existing lint, typecheck, test, and build commands. Export a dedicated migrated `TEST_DATABASE_URL` for real Socket.IO/PostgreSQL integration tests; existing SLA tests additionally require `TEST_REDIS_URL`. Fixtures use randomized users/organizations/sessions and remove only tracked rows. No production data, reset, debug HTTP endpoints, or frontend socket package is used. Tests inspect the gateway's actual namespace rooms and socket data through Nest test instrumentation, exercise real WebSocket clients, and verify sanitized acknowledgements and cleanup.
+A crash after emit but before PostgreSQL marking can replay the same outbox row. A failure partway through recipient delivery can also repeat hints to recipients already reached. Retries always retain the same `eventId`; clients must deduplicate by event ID. Successfully marked rows are not knowingly dispatched again. This is retry-capable, at-least-once-style transport handoff with possible duplicate hints, **not exactly-once delivery** and not guaranteed receipt by every client. Socket.IO's own transport can lose a message during disconnect.
 
-Built-process smoke verification logs in over HTTP, connects with the returned access token, joins an organization, receives `organization:joined`, disconnects, revokes the session through logout, and verifies reconnection rejection. Existing health/readiness and SLA worker checks remain included.
+No global or per-ticket commit ordering is promised across concurrent dispatchers or retries. A client seeing workflow version 9 followed by 8 must ignore stale state or re-fetch, never roll state backward. Assignment and status events may share one version. Comments do not increment the workflow version and may share it with earlier events: deduplicate by `eventId`/comment ID rather than dropping every equal-version event. An initial HTTP response and a hint can arrive in either order.
 
-Deferred features are ticket broadcasts, live notification delivery, presence, frontend realtime UI/client, incidents, Redis fan-out, automatic revocation push, in-place token replacement, per-event abuse controls, and domain event delivery/replay guarantees.
+Reconnect always authenticates, explicitly joins, and re-fetches current HTTP state. No event offset, replay log, or missed-event stream is implemented. Persisted ticket state and recipient notification inbox are the recovery path. Realtime accelerates discovery of changes; it does not replace persistence.
 
-The implementation follows the [Nest gateway lifecycle](https://docs.nestjs.com/websockets/gateways) and [Socket.IO server configuration](https://socket.io/docs/v4/server-options/).
+## Configuration, scaling, and health
+
+`FRONTEND_ORIGINS` is an exact comma-separated allowlist: locally `http://localhost:3000`; production requires explicit HTTPS origins. Wildcards, credentials, paths/trailing slashes, and browser `null` origin are rejected. The custom adapter uses `allowRequest` on WebSocket upgrades as well as CORS options. Native clients without an Origin header still require valid credentials. `configureRealtime(app)` must run before listening; default gateway upgrades fail closed if a custom bootstrap omits it. Packets above 8192 bytes disconnect; namespace connection timeout is ten seconds. Per-event/account rate limiting and connection caps remain deferred.
+
+Deploy **one Socket.IO/API instance** for this phase. Local rooms and validated emissions are not distributed. Running competing API dispatchers on different instances would let one mark an event delivered only to its own clients; database claims alone do not solve fan-out. Horizontal scaling needs a future Redis adapter plus coordinated recipient authorization/invalidation and delivery ownership. The SLA Redis connection does not automatically provide Socket.IO fan-out. Connection-state recovery remains disabled.
+
+Existing `/health` liveness and `/ready` PostgreSQL/Redis readiness are unchanged; neither promises client receipt, realtime backlog freshness, or multi-node fan-out. Gateway initialization and sanitized dispatch errors are logged. Monitor pending count/age, quarantine count, repeated attempts, and database/transport capacity.
+
+## Migration and verification
+
+Migration `20261025030000_realtime_delivery` extends outbox types, makes the SLA reference optional for other delivery purposes, adds ticket/notification tenant-safe references, JSON snapshot and quarantine fields, destination uniqueness/indexes, and a SQL delivery-shape check. It preserves existing SLA records and earlier migrations. Apply through the existing `prisma:migrate:deploy` command; no reset or seed is required.
+
+Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. Export a dedicated migrated `TEST_DATABASE_URL` for real Socket.IO tests and `TEST_REDIS_URL` for the existing real BullMQ suite. Domain suites disable automatic polling and drive the actual dispatcher explicitly so multiple test applications cannot consume one another's sources unpredictably. Fixtures target only tracked rows/isolated queues. Real tests inspect received packets and actual server rooms, use protocol acknowledgements to check negative delivery without arbitrary sleeps, and cover retries, crash-window duplicates, rollback, recipient/tenant boundaries, role changes, revocation, quarantine, and reconnect recovery.
+
+Built-process verification starts the API and separate SLA worker with disposable PostgreSQL and isolated Redis, connects two organization clients, checks creation/assignment/status/minimal comments, observes a real worker-produced SLA notification, and verifies membership removal after join.
+
+Deferred work includes frontend auth/dashboard/socket client, presence/typing, incidents, customer portal, email/SMS, realtime mutations, Redis fan-out, replay/offset recovery, per-event abuse controls, and automated quarantine tooling.
+
+See [Socket.IO delivery guarantees](https://socket.io/docs/v4/delivery-guarantees/) and [room semantics](https://socket.io/docs/v4/rooms/).

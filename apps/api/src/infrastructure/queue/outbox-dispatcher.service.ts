@@ -22,15 +22,18 @@ export class OutboxDispatcher {
           const now = this.clock.now();
           const rows = await tx.$queryRaw<
             OutboxEvent[]
-          >`SELECT * FROM "OutboxEvent" WHERE "processedAt" IS NULL AND "nextAttemptAt"<=${now} ORDER BY "nextAttemptAt","createdAt","id" LIMIT 1 FOR UPDATE SKIP LOCKED`;
+          >`SELECT * FROM "OutboxEvent" WHERE "type" IN ('SLA_EVENT_SCHEDULED','SLA_EVENT_COMPLETED') AND "processedAt" IS NULL AND "nextAttemptAt"<=${now} ORDER BY "nextAttemptAt","createdAt","id" LIMIT 1 FOR UPDATE SKIP LOCKED`;
           const row = rows[0];
           if (!row) return false;
           const event = await tx.slaEvent.findFirst({
-            where: { id: row.slaEventId, organizationId: row.organizationId },
+            where: { id: row.slaEventId!, organizationId: row.organizationId },
           });
           if (!event) throw new Error('Outbox SLA relation missing');
           try {
-            await this.queue.schedule(event, row.type);
+            await this.queue.schedule(
+              event,
+              row.type as import('../outbox/outbox-types').SlaOutboxType,
+            );
             await tx.outboxEvent.update({
               where: { id: row.id },
               data: {

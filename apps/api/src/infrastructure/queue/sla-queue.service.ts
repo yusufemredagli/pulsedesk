@@ -8,10 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Clock } from '../../common/clock.module';
 import { RedisService } from '../redis/redis.service';
-import type {
-  OutboxEventType,
-  SlaEventType,
-} from '../../generated/prisma/client';
+import type { SlaEventType } from '../../generated/prisma/client';
 export interface SlaJobData {
   slaEventId: string;
 }
@@ -21,7 +18,10 @@ export const SLA_JOBS = {
   RESOLUTION: 'sla:resolution:deadline',
   COMPLETION: 'sla:completion:reconcile',
 } as const;
-export function jobId(eventId: string, type: OutboxEventType): string {
+export function jobId(
+  eventId: string,
+  type: import('../outbox/outbox-types').SlaOutboxType,
+): string {
   return `${type === 'SLA_EVENT_SCHEDULED' ? 'sla-event' : 'sla-completion'}-${eventId}`;
 }
 @Injectable()
@@ -59,7 +59,7 @@ export class SlaQueue implements OnApplicationShutdown {
   }
   async schedule(
     event: { id: string; type: SlaEventType; dueAt: Date },
-    type: OutboxEventType,
+    type: import('../outbox/outbox-types').SlaOutboxType,
   ): Promise<void> {
     const queue = this.queue;
     const name =

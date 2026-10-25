@@ -1,3 +1,4 @@
+import { RealtimeDispatchRuntime } from '../src/modules/realtime/realtime-dispatch-runtime';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +32,8 @@ test('organization guards and decorators work from a separate importing module',
   const module = await Test.createTestingModule({
     imports: [AppModule, GuardFixtureModule],
   })
+    .overrideProvider(RealtimeDispatchRuntime)
+    .useValue({})
     .overrideProvider(PrismaService)
     .useValue({
       refreshToken: {

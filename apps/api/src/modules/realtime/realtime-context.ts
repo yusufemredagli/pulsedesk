@@ -6,6 +6,7 @@ export interface RealtimeData {
   identity?: Readonly<AccessIdentity>;
   tenant?: Readonly<TenantContext>;
   busy?: boolean;
+  tenantRevision?: number;
   expiryTimer?: ReturnType<typeof setTimeout>;
 }
 export type RealtimeSocket = Socket<
