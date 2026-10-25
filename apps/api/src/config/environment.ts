@@ -1,3 +1,4 @@
+import { allowedFrontendOrigins } from './realtime';
 import { validateInfrastructure } from './infrastructure';
 function seconds(
   value: unknown,
@@ -28,8 +29,10 @@ export function validateEnvironment(config: Record<string, unknown>) {
       'JWT_ACCESS_SECRET must be a strong secret of at least 32 bytes',
     );
   }
+  const origins = allowedFrontendOrigins(config);
   return {
     ...validateInfrastructure(config),
+    FRONTEND_ORIGINS: origins.join(','),
     PORT: port,
     JWT_ACCESS_SECRET: secret,
     JWT_ACCESS_TTL: seconds(

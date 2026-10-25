@@ -1,3 +1,4 @@
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { ReadyController } from './ready.controller';
 import { SlaModule } from './modules/sla/sla.module';
@@ -29,6 +30,7 @@ import { validateEnvironment } from './config/environment';
     TicketsModule,
     CustomersModule,
     TeamsModule,
+    RealtimeModule,
   ],
   controllers: [HealthController, ReadyController],
   providers: [

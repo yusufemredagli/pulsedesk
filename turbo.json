@@ -25,7 +25,8 @@
         "REFRESH_TOKEN_TTL",
         "NODE_ENV",
         "SLA_QUEUE_PREFIX",
-        "OUTBOX_POLL_INTERVAL_MS"
+        "OUTBOX_POLL_INTERVAL_MS",
+        "FRONTEND_ORIGINS"
       ]
     },
     "lint": {},

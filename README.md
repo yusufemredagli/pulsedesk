@@ -1,6 +1,6 @@
 # PulseDesk
 
-PulseDesk is the foundation for a real-time incident and customer support operations platform. Phase 4 adds a recoverable SLA engine with Redis, BullMQ, a separate worker, transactional outbox delivery, policy management, and recipient-scoped notifications. Teams, customers, and ticket operations retain explicit lifecycle commands, assignment, staff comments, transactional histories/audits, and tenant-safe pagination. Authentication and live organization authorization remain in place. Frontend product/authentication screens are not implemented.
+PulseDesk is the foundation for a real-time incident and customer support operations platform. Phase 5A adds authenticated, tenant-aware Socket.IO infrastructure alongside the Phase 4 recoverable SLA engine with Redis, BullMQ, a separate worker, transactional outbox delivery, policy management, and recipient-scoped notifications. Teams, customers, and ticket operations retain explicit lifecycle commands, assignment, staff comments, transactional histories/audits, and tenant-safe pagination. Authentication and live organization authorization remain in place. Frontend product/authentication screens are not implemented.
 
 ## Architecture
 
@@ -42,19 +42,20 @@ cp .env.example .env
 
 Root `.env` is ignored by Git. The API reads its local `.env` first, then the root `.env`; exported environment variables take precedence. API startup requires a configured, reachable PostgreSQL database and a strong `JWT_ACCESS_SECRET`, plus a configured `REDIS_URL`. Redis outages degrade readiness without preventing committed ticket/outbox writes. Generate a secret with `openssl rand -base64 48` and store it in your ignored `.env`; no default secret is provided. Builds and unit tests do not require a database or production secrets.
 
-| Variable                  | Purpose                                                                 |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `DATABASE_URL`            | PostgreSQL connection URL for Prisma commands and API startup           |
-| `TEST_DATABASE_URL`       | Dedicated migrated PostgreSQL database for optional constraint tests    |
-| `REDIS_URL`               | Required Redis URL for API readiness and SLA worker                     |
-| `TEST_REDIS_URL`          | Explicit dedicated Redis test URL; random test queue namespaces         |
-| `SLA_QUEUE_PREFIX`        | Shared deployment queue namespace, default `pulsedesk`                  |
-| `OUTBOX_POLL_INTERVAL_MS` | Worker outbox interval, default `2000` milliseconds                     |
-| `JWT_ACCESS_SECRET`       | Required random signing secret, at least 32 bytes                       |
-| `JWT_ACCESS_TTL`          | Access lifetime in seconds, default `900` (range `60`–`1200`)           |
-| `REFRESH_TOKEN_TTL`       | Refresh lifetime in seconds, default `2592000` (range `3600`–`7776000`) |
-| `NEXT_PUBLIC_API_URL`     | Public API base URL, default example `http://localhost:4000`            |
-| `PORT`                    | API port, defaults to `4000`                                            |
+| Variable                  | Purpose                                                                     |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `DATABASE_URL`            | PostgreSQL connection URL for Prisma commands and API startup               |
+| `TEST_DATABASE_URL`       | Dedicated migrated PostgreSQL database for optional constraint tests        |
+| `REDIS_URL`               | Required Redis URL for API readiness and SLA worker                         |
+| `TEST_REDIS_URL`          | Explicit dedicated Redis test URL; random test queue namespaces             |
+| `SLA_QUEUE_PREFIX`        | Shared deployment queue namespace, default `pulsedesk`                      |
+| `OUTBOX_POLL_INTERVAL_MS` | Worker outbox interval, default `2000` milliseconds                         |
+| `JWT_ACCESS_SECRET`       | Required random signing secret, at least 32 bytes                           |
+| `JWT_ACCESS_TTL`          | Access lifetime in seconds, default `900` (range `60`–`1200`)               |
+| `REFRESH_TOKEN_TTL`       | Refresh lifetime in seconds, default `2592000` (range `3600`–`7776000`)     |
+| `FRONTEND_ORIGINS`        | Exact frontend origin allowlist; production requires explicit HTTPS origins |
+| `NEXT_PUBLIC_API_URL`     | Public API base URL, default example `http://localhost:4000`                |
+| `PORT`                    | API port, defaults to `4000`                                                |
 
 For local Compose services, set `DATABASE_URL` in your ignored `.env` to `postgresql://pulsedesk:pulsedesk_local@localhost:5432/pulsedesk?schema=public` and `REDIS_URL` to `redis://localhost:6379`. These are local development credentials only. Never reuse them in production.
 
@@ -128,10 +129,12 @@ See [the domain model](docs/domain-model.md) for entities, the ER diagram, tenan
 
 Pull requests and pushes to `main` use Node 24 and isolated PostgreSQL and Redis services. CI runs frozen-lockfile installation, Prisma validation/generation, migration deployment/status, lint, type checks, tests (including database constraints), build, and Compose configuration validation. CI does not deploy the application.
 
-The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Realtime delivery, incident management, attachments, email ingestion, AI features, and frontend authentication/product screens remain unimplemented. The shared UI still contains only one Button.
+The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Authenticated realtime transport is available at `/realtime`, with shared access/session verification, explicit organization selection, and tenant/member rooms. Ticket broadcasts, live notifications, presence, a frontend realtime client, incident management, attachments, email ingestion, AI features, and frontend authentication/product screens remain unimplemented. The shared UI still contains only one Button.
 
 See [authentication documentation](docs/authentication.md) for endpoint contracts, configuration, tenant guards, rotation behavior, rate limits, and security limitations. `/auth/context` and `/auth/owner-only` are removable Phase 2 verification endpoints. Authentication uses Argon2id, short-lived HS256 access JWTs, and SHA-256 hashes of opaque refresh tokens. Phase 3 adds only a ticket-number counter and ticket version field; auth/session schema remains unchanged. See [ticket lifecycle and permissions](docs/ticket-lifecycle.md) for API contracts, required `expectedVersion` command preconditions, agent visibility, concurrency, history limits, and audit behavior.
 
 See [the SLA engine guide](docs/sla-engine.md) for worker startup, policy/notification APIs, UTC semantics, idempotency, outage behavior, retention, and manual recovery commands. Policy changes affect new tickets only; no active policy means no SLA.
+
+See [the realtime guide](docs/realtime.md) for handshake authentication, event acknowledgements, organization switching, origin configuration, live revalidation, and single-instance scaling limits.
 
 The lint toolchain currently stays on ESLint 9 because Next.js's React, import, and accessibility plugins declare ESLint 9 compatibility. npm marks this version deprecated; upgrade it when those plugins support ESLint 10. A root pnpm override keeps Nest CLI's transitive webpack dependency compatible with schema-utils' webpack peer requirement.

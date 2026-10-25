@@ -1,3 +1,4 @@
+import { AccessTokenService } from './access-token.service';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -39,6 +40,7 @@ import { RolesGuard } from './guards/roles.guard';
     AuthService,
     PasswordService,
     OrganizationSlugService,
+    AccessTokenService,
     AccessTokenGuard,
     OrganizationGuard,
     RolesGuard,
@@ -46,6 +48,7 @@ import { RolesGuard } from './guards/roles.guard';
   exports: [
     JwtModule,
     DatabaseModule,
+    AccessTokenService,
     AccessTokenGuard,
     OrganizationGuard,
     RolesGuard,
