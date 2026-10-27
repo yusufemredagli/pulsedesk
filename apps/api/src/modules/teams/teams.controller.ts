@@ -1,3 +1,4 @@
+import { ResourceVersionDto } from '../../common/resource-edit';
 import {
   Body,
   Controller,
@@ -38,6 +39,15 @@ export class TeamsController {
   ) {
     return this.service.list(context, query);
   }
+  @Get(':id/members')
+  @OrganizationAccess()
+  members(
+    @CurrentTenant() context: TenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query(validationFor(PageQuery)) query: PageQuery,
+  ) {
+    return this.service.members(context, id, query);
+  }
   @Get(':id')
   @OrganizationAccess()
   get(
@@ -63,7 +73,12 @@ export class TeamsController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body(validationFor(AddTeamMemberDto)) body: AddTeamMemberDto,
   ) {
-    return this.service.addMember(context, id, body.membershipId);
+    return this.service.addMember(
+      context,
+      id,
+      body.membershipId,
+      body.expectedUpdatedAt,
+    );
   }
   @Delete(':id/members/:membershipId')
   @HttpCode(204)
@@ -72,7 +87,13 @@ export class TeamsController {
     @CurrentTenant() context: TenantContext,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Param('membershipId', new ParseUUIDPipe()) membershipId: string,
+    @Query(validationFor(ResourceVersionDto)) query: ResourceVersionDto,
   ) {
-    return this.service.removeMember(context, id, membershipId);
+    return this.service.removeMember(
+      context,
+      id,
+      membershipId,
+      query.expectedUpdatedAt,
+    );
   }
 }

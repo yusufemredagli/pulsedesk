@@ -75,12 +75,28 @@ PostgreSQL and Redis have health checks, bind only to loopback, and persist data
 
 ## Development
 
+Configure the ignored root `.env` as described above, including a local `DATABASE_URL`, Redis URL and generated `JWT_ACCESS_SECRET`. First-time setup:
+
 ```sh
-pnpm --filter @pulsedesk/api prisma:migrate:deploy
+docker compose up -d --wait
+pnpm install
+pnpm db
+pnpm seed
 pnpm dev
-# In another terminal (after pnpm build), start the separate SLA worker:
-pnpm worker
 ```
+
+`pnpm seed` is optional local demo data and is never run automatically. Daily development:
+
+```sh
+docker compose up -d
+pnpm dev
+```
+
+One root command starts Next.js, NestJS and the TypeScript SLA worker in watch mode. Turborepo builds only shared dependencies and generates Prisma Client once before starting the processes; no application `pnpm build` is required. Logs identify `@pulsedesk/web:dev`, `@pulsedesk/api:dev` and `@pulsedesk/api:worker:dev`. Startup/runtime failures remain in the stream; watch processes can stay running after a child error so code fixes can restart them. A task that exits with an error fails the root run. Ctrl+C stops the pnpm-managed processes; Docker services and their data remain running.
+
+Docker owns PostgreSQL and Redis. Startup does not invoke Docker, migrate, seed or reset data. Use `docker compose up -d --wait` if services are still starting; after pulling new migrations, run `pnpm db` explicitly.
+
+Frontend: <http://localhost:3000>. API: <http://localhost:4000>. Health: <http://localhost:4000/health>. The API root has no product route; use health or the documented feature endpoints.
 
 Web: <http://localhost:3000> redirects to sign-in. Register or sign in, explicitly choose an organization, then enter `/app`. API: <http://localhost:4000/health> returns:
 
@@ -90,16 +106,19 @@ Web: <http://localhost:3000> redirects to sign-in. Register or sign in, explicit
 
 This endpoint reports application liveness. `GET /ready` probes PostgreSQL and Redis and returns 503 when a dependency is unavailable. It does not check the separate worker process.
 
-| Root command     | Purpose                                                                       |
-| ---------------- | ----------------------------------------------------------------------------- |
-| `pnpm dev`       | Start both applications with watch mode                                       |
-| `pnpm worker`    | Start the separately built SLA worker                                         |
-| `pnpm build`     | Build shared packages before applications                                     |
-| `pnpm lint`      | Run workspace ESLint checks and repository formatting checks                  |
-| `pnpm typecheck` | Build dependency types and check application/package types                    |
-| `pnpm test`      | Run frontend/backend unit tests and opt-in PostgreSQL/Redis integration tests |
-| `pnpm format`    | Format repository source and configuration                                    |
-| `pnpm clean`     | Remove compiled output and task caches; preserve dependencies and data        |
+| Root command      | Purpose                                                                       |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `pnpm dev`        | Start web, API and the TypeScript worker with watch mode                      |
+| `pnpm db`         | Deploy existing API Prisma migrations; never seed or reset data               |
+| `pnpm seed`       | Explicitly create missing local demo data                                     |
+| `pnpm worker:dev` | Run only the TypeScript worker in watch mode with shared/Prisma preparation   |
+| `pnpm worker`     | Start the separately built SLA worker                                         |
+| `pnpm build`      | Build shared packages before applications                                     |
+| `pnpm lint`       | Run workspace ESLint checks and repository formatting checks                  |
+| `pnpm typecheck`  | Build dependency types and check application/package types                    |
+| `pnpm test`       | Run frontend/backend unit tests and opt-in PostgreSQL/Redis integration tests |
+| `pnpm format`     | Format repository source and configuration                                    |
+| `pnpm clean`      | Remove compiled output and task caches; preserve dependencies and data        |
 
 Ports: web `3000`, API `4000`, PostgreSQL `5432`, Redis `6379`.
 
@@ -119,7 +138,7 @@ pnpm --filter @pulsedesk/api prisma:migrate:deploy
 pnpm --filter @pulsedesk/api prisma:migrate:status
 ```
 
-`init_core_domain` is the first migration; `ticket_operations` adds the organization counter and ticket workflow version, backfilling counters from existing tickets. `sla_engine` adds the tenant-safe outbox and notification entity/type fields. `realtime_delivery` adds destination-specific realtime source records, tenant references, snapshots, and quarantine state. The initial migration includes SQL-only positive-value checks and a partial unique index for active SLA policies. No seed or database reset is included. Use migrations rather than `db push` and inspect future migration diffs to preserve custom constraints.
+`init_core_domain` is the first migration; `ticket_operations` adds the organization counter and ticket workflow version, backfilling counters from existing tickets. `sla_engine` adds the tenant-safe outbox and notification entity/type fields. `realtime_delivery` adds destination-specific realtime source records, tenant references, snapshots, and quarantine state. The initial migration includes SQL-only positive-value checks and a partial unique index for active SLA policies. Migration deployment never seeds or resets the database; the optional demo seed is a separate command. Use migrations rather than `db push` and inspect future migration diffs to preserve custom constraints.
 
 The PostgreSQL authentication, ticket-operations, and constraint suites run when `TEST_DATABASE_URL` is exported, pointing at a dedicated database with migrations already applied. For example, create a separate `pulsedesk_test` database in your local PostgreSQL instance, deploy migrations with `DATABASE_URL` pointing to that database, then export its URL as `TEST_DATABASE_URL` and run `pnpm test`. Constraint fixtures roll back; HTTP suites remove only their tracked fixtures. No database reset occurs. Export `TEST_REDIS_URL` as well to run SLA integration tests; each suite generates and cleans an isolated queue prefix without flushing Redis. Without that variable the database suite is explicitly skipped. Root `.env` is not automatically loaded into the test runner; export this opt-in variable in your shell.
 
@@ -129,7 +148,7 @@ See [the domain model](docs/domain-model.md) for entities, the ER diagram, tenan
 
 Pull requests and pushes to `main` use Node 24 and isolated PostgreSQL and Redis services. CI runs frozen-lockfile installation, Prisma validation/generation, migration deployment/status, lint, type checks, tests (including database constraints), build, and Compose configuration validation. CI does not deploy the application.
 
-The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Authenticated realtime transport is available at `/realtime`, with shared access/session verification, explicit organization selection, and tenant/member rooms. Backend ticket creation/assignment/status/comment events and recipient-only persisted live notifications now use transactional outbox delivery with live recipient revalidation. The frontend restores contained browser sessions, coordinates refresh, verifies organization selection, reconciles realtime hints, and provides the dashboard, ticket queue/detail workflow and notification preview. Customer/team/SLA administration screens, presence, incident management, attachments, email ingestion, and AI features remain unimplemented. The shared UI still contains only one Button.
+The domain includes users, organizations, memberships, teams, customers, tickets, assignment/comment/status history, SLA policies/events, notifications, audit logs, and hashed refresh-token records. Roles belong to organization membership. Backend registration, login, JWT access, rotating opaque refresh tokens, logout, `/auth/me`, database-verified organization context, and explicit RBAC are implemented. Teams and customers support scoped create/list/detail/update; teams support membership add/remove. Tickets support create/list/detail, triage/assignment, working-state commands, resolve/close/cancel, and staff comments, with atomic history and audit records. SLA policy selection, first-response/resolution completion, delayed breach jobs, outbox recovery, and current-member notifications are implemented. Authenticated realtime transport is available at `/realtime`, with shared access/session verification, explicit organization selection, and tenant/member rooms. Backend ticket creation/assignment/status/comment events and recipient-only persisted live notifications now use transactional outbox delivery with live recipient revalidation. The frontend restores contained browser sessions, coordinates refresh, verifies organization selection, reconciles realtime hints, and provides the dashboard, ticket queue/detail workflow and notification preview. Customer/team administration, SLA policies and basic workspace/account settings are now available in Phase 7. Presence, incident management, attachments, email ingestion, and AI features remain unimplemented. The shared UI still contains only one Button.
 
 See [authentication documentation](docs/authentication.md) for endpoint contracts, configuration, tenant guards, rotation behavior, rate limits, and security limitations. `/auth/context` and `/auth/owner-only` are removable Phase 2 verification endpoints. Authentication uses Argon2id, short-lived HS256 access JWTs, and SHA-256 hashes of opaque refresh tokens. Phase 3 adds only a ticket-number counter and ticket version field; auth/session schema remains unchanged. See [ticket lifecycle and permissions](docs/ticket-lifecycle.md) for API contracts, required `expectedVersion` command preconditions, agent visibility, concurrency, history limits, and audit behavior.
 
@@ -146,3 +165,23 @@ The lint toolchain currently stays on ESLint 9 because Next.js's React, import, 
 The authenticated app now opens at `/app/dashboard` with real scoped queue metrics and a bounded live operations feed. `/app/tickets` supports server search, filters, sorting, pagination and ticket creation. Ticket detail provides version-checked lifecycle commands, searchable assignment, public/internal comments, a combined chronological timeline and SLA deadlines. The notification bell previews persisted unread alerts and supports mark-read. Realtime hints trigger debounced HTTP reconciliation; the responsive shell and ticket cards support narrow mobile screens.
 
 See [product UI](docs/product-ui.md) for permission boundaries, metric definitions, SLA visual rules, backend support endpoints and deferred scope.
+
+## Demo environment
+
+An optional **LOCAL DEVELOPMENT / DEMO ONLY** seed creates PulseDesk Demo with four role-based accounts, two teams, three customers, six lifecycle scenarios, SLA coverage and notifications. It refuses production and remote database hosts, is idempotent, and preserves edits when repeated.
+
+```sh
+docker compose up -d --wait
+pnpm install
+pnpm db
+pnpm seed
+pnpm dev
+```
+
+See [the demo environment guide](docs/demo-environment.md) for explicitly local credentials, roles, scenario details and safety boundaries. These accounts are never production accounts.
+
+## Management modules — Phase 7
+
+All main sidebar routes are functional. Customers support server search/sort/pagination, editing, scoped ticket statistics/history and preselected ticket creation. Teams support administration, paginated member roles and live workload. SLA policies support minute/hour targets and activation with historical deadlines preserved. Settings provide safe workspace/account information and permitted name changes; email and slug remain read-only. New editors use timestamp-based conflict checks and existing backend authorization.
+
+See [Phase 7 management UI](docs/management-ui.md) for routes, API additions, role boundaries, count definitions, concurrency compatibility and four-role browser verification.

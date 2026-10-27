@@ -346,6 +346,7 @@ test(
             'avatarUrl',
             'membershipId',
             'name',
+            'role',
             'userId',
           ]);
           const filtered = await call<Page<{ membershipId: string }>>(

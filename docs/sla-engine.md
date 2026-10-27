@@ -4,7 +4,7 @@ The API records SLA state in PostgreSQL. A separately started BullMQ worker disp
 
 ## Startup and configuration
 
-Use the existing PostgreSQL and Redis Compose services. Configure the ignored root `.env` with `DATABASE_URL`, `REDIS_URL`, and the API's existing strong `JWT_ACCESS_SECRET`. No real environment file or secret is committed.
+Use the existing PostgreSQL and Redis Compose services. Configure the ignored root `.env` with `DATABASE_URL`, `REDIS_URL`, and the API's existing strong `JWT_ACCESS_SECRET`. No real environment file or secret is committed. The following is production-style local startup; daily development uses the single `pnpm dev` command described below.
 
 ```sh
 docker compose up -d --wait
@@ -17,7 +17,7 @@ pnpm worker
 pnpm --filter @pulsedesk/web start
 ```
 
-For development use `pnpm dev` and, separately, `pnpm --filter @pulsedesk/api worker:dev`. Starting the API never starts a worker. The worker uses the same local/root environment-file precedence as the API, but does not require the API signing secret.
+For development, root `pnpm dev` starts web, API and the TypeScript worker together through Turborepo. It generates Prisma Client once and prepares shared packages; no application build is required. `pnpm worker:dev` runs only the watched worker with the same preparation. The API process itself never starts a worker. `pnpm worker` remains the compiled production-style command shown above. The worker uses the same local/root environment-file precedence as the API, but does not require the API signing secret.
 
 | Setting                   | Meaning                                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- |

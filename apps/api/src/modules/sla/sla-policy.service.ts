@@ -1,3 +1,4 @@
+import { nextUpdatedAt } from '../../common/resource-edit';
 import {
   BadRequestException,
   Inject,
@@ -10,9 +11,13 @@ import {
   audit,
   DomainTransaction,
 } from '../../common/domain-transaction.service';
-import { pagination, type PageQuery } from '../../common/pagination.dto';
+import { pagination } from '../../common/pagination.dto';
 import type { TenantContext } from '../auth/types/request-context';
-import type { CreatePolicyDto, UpdatePolicyDto } from './sla-policy.dto';
+import type {
+  CreatePolicyDto,
+  UpdatePolicyDto,
+  PolicyQuery,
+} from './sla-policy.dto';
 function mapped(row: SlaPolicy) {
   return {
     id: row.id,
@@ -31,15 +36,22 @@ export class SlaPolicyService {
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(DomainTransaction) private readonly transactions: DomainTransaction,
   ) {}
-  async list(context: TenantContext, query: PageQuery) {
-    const where = { organizationId: context.organizationId };
+  async list(context: TenantContext, query: PolicyQuery) {
+    const where = {
+      organizationId: context.organizationId,
+      priority: query.priority,
+    };
     const [rows, total] = await this.db.$transaction(
       [
         this.db.slaPolicy.findMany({
           where,
           take: query.limit,
           skip: (query.page - 1) * query.limit,
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          orderBy: [
+            { isActive: 'desc' },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
         }),
         this.db.slaPolicy.count({ where }),
       ],
@@ -64,21 +76,28 @@ export class SlaPolicyService {
     });
   }
   update(context: TenantContext, id: string, input: UpdatePolicyDto) {
-    if (!Object.values(input).some((value) => value !== undefined))
+    if (
+      !Object.entries(input).some(
+        ([key, value]) => key !== 'expectedUpdatedAt' && value !== undefined,
+      )
+    )
       throw new BadRequestException();
     return this.transactions.run(context, ['OWNER', 'ADMIN'], async (tx) => {
-      if (
-        !(await tx.slaPolicy.findFirst({
-          where: { id, organizationId: context.organizationId },
-          select: { id: true },
-        }))
-      )
-        throw new NotFoundException();
+      await tx.$queryRaw`SELECT "id" FROM "SlaPolicy" WHERE "organizationId"=${context.organizationId}::uuid AND "id"=${id}::uuid FOR NO KEY UPDATE`;
+      const current = await tx.slaPolicy.findFirst({
+        where: { id, organizationId: context.organizationId },
+      });
+      if (!current) throw new NotFoundException();
+      const updatedAt = nextUpdatedAt(
+        current.updatedAt,
+        input.expectedUpdatedAt,
+      );
       const row = await tx.slaPolicy.update({
         where: {
           organizationId_id: { organizationId: context.organizationId, id },
         },
         data: {
+          updatedAt,
           name: input.name,
           priority: input.priority,
           firstResponseMinutes: input.firstResponseMinutes,

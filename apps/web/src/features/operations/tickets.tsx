@@ -39,18 +39,18 @@ function TicketQueue() {
     <div className="operations">
       <header className="ops-heading">
         <div>
-          <p className="eyebrow">OPERATIONS / TICKET QUEUE</p>
+          <p className="eyebrow">OPERASYONLAR / TALEPLER</p>
           <h1>
-            Tickets{' '}
+            Talepler{' '}
             <span className="heading-count">
               {query.data?.pagination.total ?? '—'}
             </span>
           </h1>
-          <p>Turn incoming requests into coordinated action.</p>
+          <p>Gelen talepleri birlikte yönetin, çözümü hızlandırın.</p>
         </div>
         {state.session.selected?.role !== 'VIEWER' && (
           <button className="primary-button" onClick={() => setCreating(true)}>
-            ＋ New ticket
+            ＋ Yeni Talep Oluştur
           </button>
         )}
       </header>
@@ -66,23 +66,23 @@ function TicketQueue() {
       <section className="ops-panel">
         <div className="ticket-filters">
           <label className="search-field">
-            Search tickets
+            Taleplerde ara
             <input
               type="search"
               maxLength={100}
-              placeholder="Subject or PD-000142"
+              placeholder="Konu veya PD-000142"
               value={filters.search ?? ''}
               onChange={(event) => change('search', event.target.value)}
             />
           </label>
           <label>
-            Status
+            Durum
             <select
-              aria-label="Status"
+              aria-label="Durum"
               value={filters.status ?? ''}
               onChange={(event) => change('status', event.target.value)}
             >
-              <option value="">All statuses</option>
+              <option value="">Tüm durumlar</option>
               {STATUSES.map((value) => (
                 <option key={value} value={value}>
                   {words(value)}
@@ -91,13 +91,13 @@ function TicketQueue() {
             </select>
           </label>
           <label>
-            Priority
+            Öncelik
             <select
-              aria-label="Priority"
+              aria-label="Öncelik"
               value={filters.priority ?? ''}
               onChange={(event) => change('priority', event.target.value)}
             >
-              <option value="">All priorities</option>
+              <option value="">Tüm öncelikler</option>
               {PRIORITIES.map((value) => (
                 <option key={value} value={value}>
                   {words(value)}
@@ -106,9 +106,9 @@ function TicketQueue() {
             </select>
           </label>
           <details className="filter-directory">
-            <summary>Team: {team?.name ?? 'All teams'}</summary>
+            <summary>Ekip: {team?.name ?? 'Tüm ekipler'}</summary>
             <Lookup
-              label="Team"
+              label="Ekip"
               path="/teams"
               value={team}
               onChange={(value) => {
@@ -119,10 +119,10 @@ function TicketQueue() {
             />
           </details>
           <details className="filter-directory">
-            <summary>Member: {member?.name ?? 'All members'}</summary>
+            <summary>Kişi: {member?.name ?? 'Tüm kişiler'}</summary>
             <Lookup
               key={team?.id ?? 'all'}
-              label="Member"
+              label="Kişi"
               path={`/organization/members${team ? `?teamId=${team.id}` : ''}`}
               value={member}
               onChange={(value) => {
@@ -132,17 +132,17 @@ function TicketQueue() {
             />
           </details>
           <label>
-            Sort
+            Sıralama
             <select
-              aria-label="Sort"
+              aria-label="Sıralama"
               value={filters.sort ?? 'updatedAt:desc'}
               onChange={(event) => change('sort', event.target.value)}
             >
-              <option value="updatedAt:desc">Recently updated</option>
-              <option value="createdAt:desc">Newest created</option>
-              <option value="createdAt:asc">Oldest created</option>
-              <option value="priority:desc">Highest priority</option>
-              <option value="ticketNumber:asc">Ticket number ↑</option>
+              <option value="updatedAt:desc">Son güncellenenler</option>
+              <option value="createdAt:desc">En yeni talepler</option>
+              <option value="createdAt:asc">En eski talepler</option>
+              <option value="priority:desc">En yüksek öncelik</option>
+              <option value="ticketNumber:asc">Talep numarası ↑</option>
             </select>
           </label>
         </div>
@@ -156,27 +156,27 @@ function TicketQueue() {
           <Empty
             title={
               Object.values(filters).some(Boolean)
-                ? 'No matching tickets'
-                : 'Your queue is clear'
+                ? 'Talep bulunamadı'
+                : 'Henüz talep yok'
             }
           >
             {Object.values(filters).some(Boolean)
-              ? 'Try a different search or remove a filter to widen the queue.'
-              : 'New customer requests will appear here. Create a ticket to start work.'}
+              ? 'Farklı bir arama yapın veya filtreleri kaldırarak yeniden deneyin.'
+              : 'Yeni müşteri talepleri burada görünecek. Başlamak için bir talep oluşturun.'}
           </Empty>
         )}
         <footer className="table-pagination">
           <span>
             {query.loading
-              ? 'Updating queue…'
-              : `${query.data?.pagination.total ?? 0} tickets · Page ${page} of ${Math.max(1, query.data?.pagination.totalPages ?? 1)}`}
+              ? 'Talepler güncelleniyor…'
+              : `${query.data?.pagination.total ?? 0} talep · Sayfa ${page} / ${Math.max(1, query.data?.pagination.totalPages ?? 1)}`}
           </span>
           <div>
             <button
               disabled={page === 1 || query.loading}
               onClick={() => setPage((value) => value - 1)}
             >
-              Previous
+              Önceki
             </button>
             <button
               disabled={
@@ -186,7 +186,7 @@ function TicketQueue() {
               }
               onClick={() => setPage((value) => value + 1)}
             >
-              Next
+              Sonraki
             </button>
           </div>
         </footer>

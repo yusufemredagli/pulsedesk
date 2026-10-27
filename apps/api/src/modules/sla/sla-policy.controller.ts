@@ -13,8 +13,11 @@ import { CurrentTenant } from '../auth/decorators/context.decorator';
 import { OrganizationAccess } from '../auth/decorators/organization-access.decorator';
 import type { TenantContext } from '../auth/types/request-context';
 import { validationFor } from '../../common/validation';
-import { PageQuery } from '../../common/pagination.dto';
-import { CreatePolicyDto, UpdatePolicyDto } from './sla-policy.dto';
+import {
+  CreatePolicyDto,
+  UpdatePolicyDto,
+  PolicyQuery,
+} from './sla-policy.dto';
 import { SlaPolicyService } from './sla-policy.service';
 @Controller('sla/policies')
 export class SlaPolicyController {
@@ -25,7 +28,7 @@ export class SlaPolicyController {
   @OrganizationAccess()
   list(
     @CurrentTenant() context: TenantContext,
-    @Query(validationFor(PageQuery)) query: PageQuery,
+    @Query(validationFor(PolicyQuery)) query: PolicyQuery,
   ) {
     return this.service.list(context, query);
   }

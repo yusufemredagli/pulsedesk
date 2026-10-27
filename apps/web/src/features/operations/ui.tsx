@@ -6,28 +6,34 @@ import { useMinute } from './resource';
 export function ErrorState({
   error,
   retry,
+  entity = 'Talep',
 }: {
   error: Error;
   retry: () => void;
+  entity?: string;
 }) {
   return (
     <div className="ops-error" role="alert">
       <strong>
         {error instanceof ApiError && error.status === 404
-          ? 'Ticket unavailable'
+          ? `${entity} bulunamadı`
           : error instanceof ApiError && error.status === 403
-            ? 'Access restricted'
-            : 'Unable to load this view'}
+            ? 'Erişim yetkiniz yok'
+            : 'Bu ekran yüklenemedi'}
       </strong>
       <p>{error.message}</p>
-      <button onClick={retry}>Try again</button>
-      <Link href="/app/tickets">Return to tickets</Link>
+      <button onClick={retry}>Tekrar Dene</button>
+      <Link href="/app/tickets">Taleplere Dön</Link>
     </div>
   );
 }
 export function Loading() {
   return (
-    <div className="ops-loading" aria-label="Loading workspace" role="status">
+    <div
+      className="ops-loading"
+      aria-label="Çalışma alanı yükleniyor"
+      role="status"
+    >
       {[1, 2, 3, 4].map((n) => (
         <div key={n} />
       ))}
@@ -57,7 +63,7 @@ export function SlaBadges({ ticket }: { ticket: Ticket }) {
           );
         })
       ) : (
-        <span className="muted">No policy</span>
+        <span className="muted">Politika yok</span>
       )}
     </span>
   );
@@ -69,13 +75,13 @@ export function TicketTable({ tickets }: { tickets: Ticket[] }) {
         <thead>
           <tr>
             {[
-              'Ticket',
-              'Customer',
-              'Priority',
-              'Status',
-              'Assigned to',
+              'Talep',
+              'Müşteri',
+              'Öncelik',
+              'Durum',
+              'Atanan Kişi',
               'SLA',
-              'Updated',
+              'Güncellendi',
             ].map((label) => (
               <th key={label}>{label}</th>
             ))}
@@ -84,7 +90,7 @@ export function TicketTable({ tickets }: { tickets: Ticket[] }) {
         <tbody>
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
-              <td data-label="Ticket">
+              <td data-label="Talep">
                 <Link
                   className="ticket-link"
                   href={`/app/tickets/${ticket.id}`}
@@ -93,18 +99,18 @@ export function TicketTable({ tickets }: { tickets: Ticket[] }) {
                   <strong>{ticket.subject}</strong>
                 </Link>
               </td>
-              <td data-label="Customer">{ticket.customer.name}</td>
-              <td data-label="Priority">
+              <td data-label="Müşteri">{ticket.customer.name}</td>
+              <td data-label="Öncelik">
                 <Badge value={ticket.priority} />
               </td>
-              <td data-label="Status">
+              <td data-label="Durum">
                 <Badge value={ticket.status} />
               </td>
-              <td data-label="Assigned to">
+              <td data-label="Atanan Kişi">
                 <span>
                   {ticket.assignedMember?.name ??
                     ticket.assignedTeam?.name ??
-                    'Unassigned'}
+                    'Atanmamış'}
                 </span>
                 {ticket.assignedMember && ticket.assignedTeam && (
                   <small>{ticket.assignedTeam.name}</small>
@@ -113,7 +119,7 @@ export function TicketTable({ tickets }: { tickets: Ticket[] }) {
               <td data-label="SLA">
                 <SlaBadges ticket={ticket} />
               </td>
-              <td data-label="Updated">
+              <td data-label="Güncellendi">
                 <time dateTime={ticket.updatedAt}>
                   {date(ticket.updatedAt)}
                 </time>

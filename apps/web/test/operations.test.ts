@@ -60,14 +60,14 @@ test('SLA threshold, overdue, completion, breach precedence and cancellation are
     ).tone,
     'signal',
   );
-  assert.equal(slaState(sla, 'OPEN', now + 1800000).label, 'Breached');
+  assert.equal(slaState(sla, 'OPEN', now + 1800000).label, 'Aşıldı');
   assert.equal(
     slaState(
       { ...sla, completedAt: new Date(now).toISOString() },
       'RESOLVED',
       now,
     ).label,
-    'Completed',
+    'Tamamlandı',
   );
   assert.equal(
     slaState(
@@ -79,9 +79,9 @@ test('SLA threshold, overdue, completion, breach precedence and cancellation are
       'RESOLVED',
       now,
     ).label,
-    'Breached',
+    'Aşıldı',
   );
-  assert.equal(slaState(sla, 'CANCELLED', now).label, 'Cancelled');
+  assert.equal(slaState(sla, 'CANCELLED', now).label, 'İptal Edildi');
   assert.equal(sla.completedAt, null);
 });
 test('server query preserves search, filters, page and sorting with URL encoding', () => {

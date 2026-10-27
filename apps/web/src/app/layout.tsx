@@ -4,14 +4,15 @@ import './globals.css';
 import { ApplicationProvider } from '../features/application/provider';
 export const metadata: Metadata = {
   title: {
-    default: 'PulseDesk — Support operations',
+    default: 'PulseDesk — Destek Operasyonları',
     template: '%s | PulseDesk',
   },
-  description: 'A focused workspace for coordinated support operations.',
+  description:
+    'Destek operasyonlarını birlikte yönetmek için odaklı bir çalışma alanı.',
 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <body>
         <ApplicationProvider>{children}</ApplicationProvider>
       </body>

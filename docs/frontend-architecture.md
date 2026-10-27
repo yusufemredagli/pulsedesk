@@ -1,6 +1,6 @@
 # Frontend application architecture — Phases 5C and 6
 
-The existing Next.js App Router application now provides authentication, explicit organization selection, protected client routing, an operational dashboard, server-filtered ticket queue, ticket detail workflows, a persisted notification preview, and centralized API/realtime clients. Customer/team/SLA administration screens, incidents and presence remain deferred.
+The existing Next.js App Router application now provides authentication, explicit organization selection, protected client routing, an operational dashboard, server-filtered ticket queue, ticket detail workflows, a persisted notification preview, and centralized API/realtime clients. Customer/team administration, SLA policy controls and basic workspace/account settings are implemented in Phase 7. Incidents and presence remain deferred.
 
 ## Routes and boundaries
 
@@ -28,11 +28,14 @@ Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` or the exported build environ
 cp apps/web/.env.example apps/web/.env.local
 # Keep the existing ignored root API environment configured separately.
 docker compose up -d --wait
-pnpm --filter @pulsedesk/api prisma:migrate:deploy
+pnpm install
+pnpm db
+# Optional, local demo data only:
+pnpm seed
 pnpm dev
-# Separate terminal, after building the API:
-pnpm worker
 ```
+
+`pnpm dev` starts the frontend, API and source-watched worker together. Daily startup needs only `docker compose up -d` then `pnpm dev`; Ctrl+C stops all application processes without stopping Docker.
 
 The Phase 5C HTTP integration is `configureHttpCors(app)` before listening. Browser fetches to the API were previously blocked because HTTP CORS was not configured. It reuses `FRONTEND_ORIGINS`, permits GET/POST/PATCH/OPTIONS and Content-Type/Authorization/X-Organization-Id, exposes Retry-After, and enables no credentialed cookies. Unlisted browser origins receive no allow-origin header. Existing auth/domain response contracts, database schema, Socket.IO origin enforcement, and worker semantics are unchanged. Use TLS outside local development.
 
@@ -115,3 +118,9 @@ Deferred frontend work includes feature dashboards/lists/details, analytics, cus
 `features/operations` contains dashboard, queue, detail, modal forms, shared presentation and pure model helpers. `useResource` wraps the centralized organization API, keys rendered results by path/tenant revision, aborts superseded requests, and batches realtime refreshes with a 200 ms debounce. ApplicationClient exposes a narrow organization-scoped request method without exposing credentials. Successful ticket HTTP reads seed the existing bounded realtime version tracker. Local command completion and live hints trigger HTTP reconciliation rather than partial socket merges. Visible resources also refresh on focus and once per minute to recover missed hints and age dashboard counts. A ten-second Socket.IO readiness deadline exposes silent transport stalls as degraded, while a successful join cancels pending retries.
 
 Command dialogs retain their opening expectedVersion. Synchronous submit locks prevent double-click mutations; conflicts refetch and require a fresh user decision. Views remount their form/filter state on tenant revision changes. The bell keeps a bounded preview and handles mark-read failures locally. See [product UI](product-ui.md) for count definitions, roles, SLA rules and responsive behavior.
+
+## Phase 7 management modules
+
+`features/management` builds customer list/detail, team list/detail, SLA policies and settings on the existing provider, scoped API client, `useResource`, dialog and ticket components. Customer/team metrics remain HTTP-authoritative and use existing ticket hints for debounced invalidation. All role controls mirror server role sets. Editors preserve the timestamp captured at opening; 409 refreshes data and requires a new user decision. Settings mutations refresh the public session profile so topbar account/organization names stay current. No credential fields or raw session IDs enter settings views.
+
+See [management UI](management-ui.md) for the six routes, API extensions, capability table, statistic definitions, policy/history semantics and browser runner.

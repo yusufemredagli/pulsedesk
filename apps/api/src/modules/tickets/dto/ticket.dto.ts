@@ -8,6 +8,7 @@ import {
   Min,
   ValidateIf,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 import {
   TicketPriority,
@@ -25,6 +26,12 @@ export class CreateTicketDto {
   @ValidateIf(optional) @IsEnum(TicketSource) source: TicketSource = 'WEB';
 }
 export class TicketQuery extends PageQuery {
+  @ValidateIf(optional)
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  activeOnly?: boolean;
   @ValidateIf(optional) @IsEnum(TicketStatus) status?: TicketStatus;
   @ValidateIf(optional) @IsEnum(TicketPriority) priority?: TicketPriority;
   @ValidateIf(optional) @IsUUID() customerId?: string;

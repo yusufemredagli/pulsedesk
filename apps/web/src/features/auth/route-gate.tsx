@@ -22,16 +22,16 @@ export function RouteGate({
       <main className="session-screen">
         <div className="session-card">
           <Brand />
-          <h1>Let’s reconnect</h1>
+          <h1>Bağlantıyı yeniden kuralım</h1>
           <p>{state.session.error}</p>
           <button
             className="button primary"
             onClick={() => void client.restore()}
           >
-            Try again
+            Tekrar Dene
           </button>
           <button className="text-button" onClick={client.clearSession}>
-            Sign in instead
+            Giriş Ekranına Dön
           </button>
         </div>
       </main>
@@ -42,8 +42,8 @@ export function RouteGate({
         <div className="session-card">
           <Brand />
           <span className="spinner" />
-          <h1>Restoring your workspace</h1>
-          <p>Checking your session and workspace access.</p>
+          <h1>Çalışma alanınız açılıyor</h1>
+          <p>Oturumunuz ve çalışma alanı erişiminiz kontrol ediliyor.</p>
         </div>
       </main>
     );

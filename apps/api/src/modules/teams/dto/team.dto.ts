@@ -1,3 +1,4 @@
+import { ResourceVersionDto } from '../../../common/resource-edit';
 import {
   IsOptional,
   IsString,
@@ -13,7 +14,7 @@ export class CreateTeamDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) description?:
     string | null;
 }
-export class UpdateTeamDto {
+export class UpdateTeamDto extends ResourceVersionDto {
   @ValidateIf(optional)
   @Transform(trim)
   @IsString()
@@ -22,6 +23,6 @@ export class UpdateTeamDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) description?:
     string | null;
 }
-export class AddTeamMemberDto {
+export class AddTeamMemberDto extends ResourceVersionDto {
   @IsUUID() membershipId!: string;
 }

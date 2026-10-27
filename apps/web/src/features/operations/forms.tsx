@@ -33,7 +33,7 @@ export function Dialog({
         <h2 id="dialog-title">{title}</h2>
         <button
           type="button"
-          aria-label="Close dialog"
+          aria-label="Pencereyi Kapat"
           disabled={busy}
           onClick={close}
         >
@@ -69,12 +69,12 @@ export function Lookup({
         <div className="lookup-selected">
           <strong>{value.name}</strong>
           <button type="button" onClick={() => onChange(null)}>
-            Clear
+            Temizle
           </button>
         </div>
       )}
       <label>
-        Find {label.toLowerCase()}
+        {label} ara
         <input
           maxLength={100}
           value={search}
@@ -82,20 +82,20 @@ export function Lookup({
             setSearch(event.target.value);
             setPage(1);
           }}
-          placeholder="Search by name"
+          placeholder="Ada göre ara"
         />
       </label>
       {result.error ? (
         <p role="alert">
           {result.error.message}
           <button type="button" onClick={result.refresh}>
-            Retry
+            Tekrar Dene
           </button>
         </p>
       ) : (
         <>
           <select
-            aria-label={`Choose ${label.toLowerCase()}`}
+            aria-label={`${label} seçin`}
             value=""
             onChange={(event) => {
               const item = result.data?.data.find(
@@ -109,7 +109,7 @@ export function Lookup({
             }}
           >
             <option value="">
-              {result.loading ? 'Loading…' : 'Select a result'}
+              {result.loading ? 'Yükleniyor…' : 'Bir sonuç seçin'}
             </option>
             {result.data?.data.map((row) => (
               <option
@@ -121,7 +121,10 @@ export function Lookup({
             ))}
           </select>
           {!result.loading && !result.data?.data.length && (
-            <small>No matching {label.toLowerCase()}. Try another name.</small>
+            <small>
+              Eşleşen {label.toLocaleLowerCase('tr-TR')} bulunamadı. Başka bir
+              ad deneyin.
+            </small>
           )}
           <div className="lookup-pages">
             <button
@@ -129,9 +132,9 @@ export function Lookup({
               disabled={page === 1 || result.loading}
               onClick={() => setPage(page - 1)}
             >
-              Previous
+              Önceki
             </button>
-            <small>Page {page}</small>
+            <small>Sayfa {page}</small>
             <button
               type="button"
               disabled={
@@ -141,7 +144,7 @@ export function Lookup({
               }
               onClick={() => setPage(page + 1)}
             >
-              Next
+              Sonraki
             </button>
           </div>
         </>

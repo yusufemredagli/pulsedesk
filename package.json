@@ -7,14 +7,17 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev worker:dev --ui=stream",
     "build": "turbo run build",
     "lint": "eslint scripts eslint.config.mjs packages/config && turbo run lint && prettier --check .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write .",
     "clean": "turbo run clean && node scripts/clean.mjs",
-    "worker": "pnpm --filter @pulsedesk/api worker"
+    "worker": "pnpm --filter @pulsedesk/api worker",
+    "seed": "pnpm --filter @pulsedesk/api seed",
+    "db": "pnpm --filter @pulsedesk/api prisma:migrate:deploy",
+    "worker:dev": "turbo run worker:dev --filter=@pulsedesk/api --ui=stream"
   },
   "devDependencies": {
     "turbo": "^2.7.0",

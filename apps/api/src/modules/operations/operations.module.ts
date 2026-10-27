@@ -111,14 +111,14 @@ export class OperationsController {
       async (tx) => {
         const rows = await tx.organizationMember.findMany({
           where,
-          select: memberSelect,
+          select: { ...memberSelect, role: true },
           orderBy: { id: 'asc' },
           skip: (query.page - 1) * query.limit,
           take: query.limit,
         });
         const total = await tx.organizationMember.count({ where });
         return {
-          data: rows.map(mapMember),
+          data: rows.map((row) => ({ ...mapMember(row)!, role: row.role })),
           pagination: pagination(query, total),
         };
       },

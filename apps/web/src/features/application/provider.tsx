@@ -37,8 +37,11 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
     return (
       <main className="session-screen">
         <div className="session-card">
-          <h1>Connection settings need attention</h1>
-          <p>Please contact your workspace administrator to restore access.</p>
+          <h1>Bağlantı ayarlarını kontrol edin</h1>
+          <p>
+            Erişimi yeniden sağlamak için çalışma alanı yöneticinizle iletişime
+            geçin.
+          </p>
         </div>
       </main>
     );

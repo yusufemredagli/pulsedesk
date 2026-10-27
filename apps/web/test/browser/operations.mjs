@@ -115,8 +115,12 @@ await db.organizationMember.update({
 const browser = await chromium.launch({ headless: true });
 const c1 = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
+    locale: 'tr-TR',
   }),
-  c2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  c2 = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    locale: 'tr-TR',
+  });
 const page = await c1.newPage(),
   other = await c2.newPage();
 const errors = [];
@@ -126,13 +130,13 @@ for (const p of [page, other]) {
 }
 async function login(p, email) {
   await p.goto(base + '/login');
-  await p.getByLabel('Work email', { exact: true }).fill(email);
-  await p.getByLabel('Password', { exact: true }).fill(password);
-  await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await p.getByLabel('İş e-postası', { exact: true }).fill(email);
+  await p.getByLabel('Şifre', { exact: true }).fill(password);
+  await p.getByRole('button', { name: 'Giriş Yap', exact: true }).click();
   await p.waitForURL(base + '/select-organization');
   await p.getByRole('button', { name: /Signal Support/ }).click();
   await p.waitForURL(base + '/app/dashboard');
-  await p.getByText('Live updates connected', { exact: true }).waitFor();
+  await p.getByText('Canlı bağlantı etkin', { exact: true }).waitFor();
 }
 async function command(p, label) {
   await p.getByRole('button', { name: label, exact: true }).first().click();
@@ -151,7 +155,7 @@ async function noOverflow(p, width, path) {
       if (!(await link.isVisible())) {
         const menu = p.locator('.mobile-menu details');
         if (!(await menu.evaluate((element) => element.open)))
-          await p.getByLabel('Open navigation', { exact: true }).click();
+          await p.getByLabel('Gezinmeyi Aç', { exact: true }).click();
         link = p.locator(`.mobile-menu a[href="${destination}"]`);
       }
       await link.click();
@@ -171,56 +175,91 @@ async function noOverflow(p, width, path) {
   );
 }
 try {
+  for (const [route, heading] of [
+    ['/login', 'Tekrar hoş geldin.'],
+    ['/register', 'Daha iyi destek için yer açın.'],
+  ]) {
+    await page.goto(base + route);
+    await page.getByRole('heading', { name: heading, exact: true }).waitFor();
+    await page.getByLabel('İş e-postası', { exact: true }).waitFor();
+    await page.getByLabel('Şifre', { exact: true }).waitFor();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'tr');
+    assert.equal(
+      /Welcome back|Work email|Sign in|Create workspace|At least 10/.test(
+        await page.locator('body').innerText(),
+      ),
+      false,
+    );
+    await page.screenshot({
+      path: join(artifacts, route.slice(1) + '.png'),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 320, height: 900 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      false,
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  }
+  await page
+    .getByRole('button', { name: 'Çalışma Alanı Oluştur', exact: true })
+    .click();
+  await page
+    .getByText('Geçerli bir iş e-postası adresi girin.', { exact: true })
+    .waitFor();
+  assert.equal(
+    await page.getByText('1–100 karakter girin.', { exact: true }).count(),
+    2,
+  );
   await login(page, manager.user.email);
   await login(other, agent.user.email);
-  await page.getByRole('heading', { name: 'Command center' }).waitFor();
+  await page.getByRole('heading', { name: 'Operasyon Merkezi' }).waitFor();
   await page
     .locator('.metric')
     .first()
     .locator('strong')
     .filter({ hasText: /^21$/ })
     .waitFor();
-  await other.getByRole('heading', { name: 'A clear queue' }).waitFor();
+  await other.getByRole('heading', { name: 'Bekleyen talep yok' }).waitFor();
   await page.goto(base + '/app/tickets');
-  await page.getByRole('button', { name: '＋ New ticket' }).click();
+  await page.getByRole('button', { name: '＋ Yeni Talep Oluştur' }).click();
   const dialog = page.getByRole('dialog');
   await dialog
-    .getByLabel('Choose customer', { exact: true })
+    .getByLabel('Müşteri seçin', { exact: true })
     .selectOption(customer.id);
   await dialog
-    .getByLabel('Subject', { exact: true })
+    .getByLabel('Konu', { exact: true })
     .fill('Checkout fails for enterprise customer');
   await dialog
-    .getByLabel('Description', { exact: true })
+    .getByLabel('Açıklama', { exact: true })
     .fill(
       'Customer reports a payment error. Coordinate a response and track the resolution.',
     );
-  await dialog.getByLabel('Priority', { exact: true }).selectOption('URGENT');
+  await dialog.getByLabel('Öncelik', { exact: true }).selectOption('URGENT');
   await dialog
-    .getByRole('button', { name: 'Create ticket', exact: true })
+    .getByRole('button', { name: 'Yeni Talep Oluştur', exact: true })
     .click();
   await page.waitForURL(/\/app\/tickets\/[0-9a-f-]+$/);
   const ticketId = page.url().split('/').at(-1);
   await page
     .getByRole('heading', { name: 'Checkout fails for enterprise customer' })
     .waitFor();
-  await page.getByText('At risk · 20m', { exact: true }).first().waitFor();
-  await command(page, 'Triage');
-  await page
-    .getByRole('button', { name: 'Assign', exact: true })
-    .first()
-    .click();
+  await page.getByText('Riskte · 20 dk', { exact: true }).first().waitFor();
+  await command(page, 'İncele');
+  await page.getByRole('button', { name: 'Ata', exact: true }).first().click();
   await page
     .getByRole('dialog')
-    .getByLabel('Choose team', { exact: true })
+    .getByLabel('Ekip seçin', { exact: true })
     .selectOption(team.id);
   await page
     .getByRole('dialog')
-    .getByLabel('Choose member', { exact: true })
+    .getByLabel('Kişi seçin', { exact: true })
     .selectOption(agentMember.id);
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Assign', exact: true })
+    .getByRole('button', { name: 'Ata', exact: true })
     .click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await other
@@ -231,37 +270,35 @@ try {
     .waitFor();
   await other
     .locator('.activity-feed')
-    .getByText('assigned to Zeynep Agent', { exact: true })
+    .getByText('atandı: Zeynep Agent', { exact: true })
     .waitFor();
   await other.goto(base + `/app/tickets/${ticketId}`);
-  await other
-    .getByRole('button', { name: 'Start work', exact: true })
-    .waitFor();
+  await other.getByRole('button', { name: 'Başlat', exact: true }).waitFor();
   assert.equal(
-    await other.getByRole('button', { name: 'Assign', exact: true }).count(),
+    await other.getByRole('button', { name: 'Ata', exact: true }).count(),
     0,
   );
   await page.goto(base + '/app/tickets');
-  await command(other, 'Start work');
+  await command(other, 'Başlat');
   await page.locator('.ops-badge.in_progress').waitFor();
   await page.goto(base + `/app/tickets/${ticketId}`);
-  await page.getByRole('button', { name: 'Resolve', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Çöz', exact: true }).waitFor();
   await other
-    .getByLabel('Comment', { exact: true })
+    .getByLabel('Yorum', { exact: true })
     .fill('Investigating payment gateway logs.');
   await other
-    .getByRole('button', { name: 'Add internal note', exact: true })
+    .getByRole('button', { name: 'Dahili Not Ekle', exact: true })
     .dblclick();
   await page
     .getByText('Investigating payment gateway logs.', { exact: true })
     .waitFor();
   assert.equal(await db.ticketComment.count({ where: { ticketId } }), 1);
-  await other.getByLabel('Visibility', { exact: true }).selectOption('PUBLIC');
+  await other.getByLabel('Görünürlük', { exact: true }).selectOption('PUBLIC');
   await other
-    .getByLabel('Comment', { exact: true })
+    .getByLabel('Yorum', { exact: true })
     .fill('We are investigating and will update you shortly.');
   await other
-    .getByRole('button', { name: 'Add public reply', exact: true })
+    .getByRole('button', { name: 'Müşteriye Yanıt Ekle', exact: true })
     .click();
   await page
     .getByText('We are investigating and will update you shortly.', {
@@ -269,28 +306,24 @@ try {
     })
     .waitFor();
   // A dialog retains the reviewed version while another session advances the ticket.
-  await page.getByRole('button', { name: 'Resolve', exact: true }).click();
-  await command(other, 'Wait for customer');
+  await page.getByRole('button', { name: 'Çöz', exact: true }).click();
+  await command(other, 'Müşteriyi Bekle');
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Resolve', exact: true })
+    .getByRole('button', { name: 'Çöz', exact: true })
     .click();
   await page
     .getByText(
-      'This ticket was updated by another user. Review the refreshed ticket and try again.',
+      'Bu talep başka bir kullanıcı tarafından güncellendi. Güncel talebi inceleyip tekrar deneyin.',
       { exact: true },
     )
     .waitFor();
-  await page
-    .getByRole('button', { name: 'Resume work', exact: true })
-    .waitFor();
-  await command(other, 'Resume work');
-  await page.getByRole('button', { name: 'Resolve', exact: true }).waitFor();
-  await command(other, 'Resolve');
-  await page
-    .getByRole('button', { name: 'Close ticket', exact: true })
-    .waitFor();
-  await command(page, 'Close ticket');
+  await page.getByRole('button', { name: 'Devam Et', exact: true }).waitFor();
+  await command(other, 'Devam Et');
+  await page.getByRole('button', { name: 'Çöz', exact: true }).waitFor();
+  await command(other, 'Çöz');
+  await page.getByRole('button', { name: 'Kapat', exact: true }).waitFor();
+  await command(page, 'Kapat');
   await page.locator('.ticket-header-meta .closed').waitFor();
   await other.locator('.ticket-header-meta .closed').waitFor();
   await page.screenshot({
@@ -299,22 +332,22 @@ try {
   });
   // Detail 404, list filters and empty state.
   await page.goto(base + '/app/tickets/' + randomUUID());
-  await page.getByText('Ticket unavailable', { exact: true }).waitFor();
+  await page.getByText('Talep bulunamadı', { exact: true }).waitFor();
   await page.goto(base + '/app/tickets');
   await page
-    .getByLabel('Search tickets', { exact: true })
+    .getByLabel('Taleplerde ara', { exact: true })
     .fill('does-not-exist');
-  await page.getByRole('heading', { name: 'No matching tickets' }).waitFor();
-  await page.getByLabel('Search tickets', { exact: true }).fill('');
+  await page.getByRole('heading', { name: 'Talep bulunamadı' }).waitFor();
+  await page.getByLabel('Taleplerde ara', { exact: true }).fill('');
   await page.getByRole('link', { name: /Checkout fails/ }).waitFor();
-  await page.getByLabel('Status', { exact: true }).selectOption('CANCELLED');
-  await page.getByRole('heading', { name: 'No matching tickets' }).waitFor();
-  await page.getByLabel('Status', { exact: true }).selectOption('');
+  await page.getByLabel('Durum', { exact: true }).selectOption('CANCELLED');
+  await page.getByRole('heading', { name: 'Talep bulunamadı' }).waitFor();
+  await page.getByLabel('Durum', { exact: true }).selectOption('');
   await page
     .locator('.table-pagination')
-    .getByRole('button', { name: 'Next', exact: true })
+    .getByRole('button', { name: 'Sonraki', exact: true })
     .click();
-  await page.getByText('22 tickets · Page 2 of 2', { exact: true }).waitFor();
+  await page.getByText('22 talep · Sayfa 2 / 2', { exact: true }).waitFor();
   await page.route(api + '/tickets/' + ticketId, (route) =>
     route.fulfill({
       status: 403,
@@ -323,7 +356,7 @@ try {
     }),
   );
   await page.goto(base + '/app/tickets/' + ticketId);
-  await page.getByText('Access restricted', { exact: true }).waitFor();
+  await page.getByText('Erişim yetkiniz yok', { exact: true }).waitFor();
   assert.equal(
     (await page.locator('body').innerText()).includes('Never display'),
     false,
@@ -331,9 +364,9 @@ try {
   await page.unroute(api + '/tickets/' + ticketId);
   await page.route(api + '/tickets?**', (route) => route.abort());
   await page.goto(base + '/app/tickets');
-  await page.getByText('Unable to load this view', { exact: true }).waitFor();
+  await page.getByText('Bu ekran yüklenemedi', { exact: true }).waitFor();
   await page.unroute(api + '/tickets?**');
-  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.getByRole('button', { name: 'Tekrar Dene', exact: true }).click();
   await page.getByRole('link', { name: /Checkout fails/ }).waitFor();
   await db.$transaction((tx) =>
     createNotifications(tx, [
@@ -346,13 +379,15 @@ try {
       },
     ]),
   );
-  await page.getByLabel('Notifications, 1 unread', { exact: true }).waitFor();
-  await page.getByLabel('Notifications, 1 unread', { exact: true }).click();
+  await page.getByLabel('Bildirimler, 1 okunmamış', { exact: true }).waitFor();
+  await page.getByLabel('Bildirimler, 1 okunmamış', { exact: true }).click();
   await page.getByText('Response review needed', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Mark read', exact: true }).click();
-  await page.getByLabel('Notifications, 0 unread', { exact: true }).waitFor();
+  await page
+    .getByRole('button', { name: 'Okundu Olarak İşaretle', exact: true })
+    .click();
+  await page.getByLabel('Bildirimler, 0 okunmamış', { exact: true }).waitFor();
   await page.goto(base + '/app/dashboard');
-  await page.getByRole('heading', { name: 'Command center' }).waitFor();
+  await page.getByRole('heading', { name: 'Operasyon Merkezi' }).waitFor();
   await page
     .locator('.metric')
     .first()
@@ -380,16 +415,16 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole('button', {
-      name: 'Switch organization, current Signal Support',
+      name: 'Çalışma Alanını Değiştir, geçerli alan: Signal Support',
     })
     .click();
   await page.getByRole('button', { name: /Read Only North/ }).click();
   await page.waitForURL(base + '/app/dashboard');
-  await page.getByRole('heading', { name: 'A clear queue' }).waitFor();
+  await page.getByRole('heading', { name: 'Bekleyen talep yok' }).waitFor();
   await page.goto(base + '/app/tickets');
-  await page.getByRole('heading', { name: 'Your queue is clear' }).waitFor();
+  await page.getByRole('heading', { name: 'Henüz talep yok' }).waitFor();
   assert.equal(
-    await page.getByRole('button', { name: '＋ New ticket' }).count(),
+    await page.getByRole('button', { name: '＋ Yeni Talep Oluştur' }).count(),
     0,
   );
   assert.equal(
@@ -401,12 +436,12 @@ try {
   await c2.routeWebSocket('**/socket.io/**', (socket) => socket.close());
   await other.reload();
   await other
-    .getByText('Live updates paused', { exact: true })
+    .getByText('Canlı bağlantı kullanılamıyor', { exact: true })
     .waitFor({ timeout: 30000 });
   await other
     .getByRole('heading', { name: 'Checkout fails for enterprise customer' })
     .waitFor();
-  await other.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await other.getByRole('button', { name: 'Yenile', exact: true }).click();
   assert.deepEqual(errors, []);
   console.log(
     'Phase 6 browser passed: MANAGER + AGENT real login/selection; create/triage/team+member assign/start/internal+public comment/wait/409/resume/resolve/close; live cross-session reconciliation; duplicate prevention; search/status empty states; 404; bell live/read; VIEWER tenant isolation; degraded websocket + HTTP; all 18 viewport/route overflow checks.',

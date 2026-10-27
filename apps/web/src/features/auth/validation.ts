@@ -13,12 +13,12 @@ export function validateAuth(
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()) ||
     input.email.trim().length > 254
   )
-    errors.email = 'Enter a valid work email address.';
+    errors.email = 'Geçerli bir iş e-postası adresi girin.';
   if (input.password.length < 10 || input.password.length > 128)
-    errors.password = 'Use between 10 and 128 characters.';
+    errors.password = '10–128 karakter kullanın.';
   if (register)
     for (const key of ['name', 'organizationName'] as const)
       if (!input[key]?.trim() || input[key]!.trim().length > 100)
-        errors[key] = 'Enter between 1 and 100 characters.';
+        errors[key] = '1–100 karakter girin.';
   return errors;
 }

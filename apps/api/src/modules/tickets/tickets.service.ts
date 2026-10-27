@@ -105,6 +105,15 @@ export class TicketsService {
     const where: Prisma.TicketWhereInput = {
       AND: [
         accessibleTickets(context),
+        ...(query.activeOnly
+          ? [
+              {
+                status: {
+                  notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] as TicketStatus[],
+                },
+              },
+            ]
+          : []),
         {
           status: query.status,
           priority: query.priority,

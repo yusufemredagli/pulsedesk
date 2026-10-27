@@ -54,7 +54,9 @@ export function useResource<T>(path: string | null, live = true) {
               path,
               tenant,
               error:
-                error instanceof Error ? error : new Error('Please try again.'),
+                error instanceof Error
+                  ? error
+                  : new Error('Lütfen tekrar deneyin.'),
               loading: false,
             });
         },

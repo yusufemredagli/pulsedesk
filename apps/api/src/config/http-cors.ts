@@ -9,7 +9,7 @@ export function configureHttpCors(app: INestApplication): void {
       NODE_ENV: config.get('NODE_ENV'),
     }),
     credentials: false,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
     exposedHeaders: ['Retry-After'],
     maxAge: 600,

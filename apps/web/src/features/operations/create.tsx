@@ -7,26 +7,28 @@ import { PRIORITIES, words, type Ticket } from './model';
 export function CreateTicket({
   close,
   done,
+  initialCustomer,
 }: {
   close: () => void;
   done: () => void;
+  initialCustomer?: { id: string; name: string };
 }) {
   const { client } = useApplication();
   const router = useRouter();
   const lock = useRef(false);
   const [customer, setCustomer] = useState<{ id: string; name: string } | null>(
-    null,
+    initialCustomer ?? null,
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   return (
-    <Dialog title="New ticket" close={close} busy={busy}>
+    <Dialog title="Yeni Talep Oluştur" close={close} busy={busy}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
           if (lock.current) return;
           if (!customer) {
-            setError('Choose a customer before creating this ticket.');
+            setError('Talep oluşturmadan önce bir müşteri seçin.');
             return;
           }
           const form = new FormData(event.currentTarget);
@@ -48,7 +50,7 @@ export function CreateTicket({
             router.push(`/app/tickets/${ticket.id}`);
           } catch (error) {
             setError(
-              error instanceof Error ? error.message : 'Please try again.',
+              error instanceof Error ? error.message : 'Lütfen tekrar deneyin.',
             );
           } finally {
             lock.current = false;
@@ -59,27 +61,29 @@ export function CreateTicket({
         <fieldset disabled={busy}>
           <Lookup
             path="/customers"
-            label="Customer"
+            label="Müşteri"
             value={customer}
             onChange={setCustomer}
           />
           <label>
-            Subject
+            Konu
             <input name="subject" required maxLength={200} />
           </label>
           <label>
-            Description
+            Açıklama
             <textarea name="description" required maxLength={10000} rows={4} />
           </label>
           <label>
-            Priority
-            <select aria-label="Priority" name="priority" defaultValue="MEDIUM">
+            Öncelik
+            <select aria-label="Öncelik" name="priority" defaultValue="MEDIUM">
               {PRIORITIES.map((value) => (
-                <option key={value}>{value}</option>
+                <option key={value} value={value}>
+                  {words(value)}
+                </option>
               ))}
             </select>
           </label>
-          <small>Created through the {words('WEB')} channel.</small>
+          <small>{words('WEB')} kanalından oluşturulur.</small>
         </fieldset>
         {error && (
           <p role="alert" className="inline-error">
@@ -87,7 +91,7 @@ export function CreateTicket({
           </p>
         )}
         <button className="primary-button" disabled={busy}>
-          {busy ? 'Creating…' : 'Create ticket'}
+          {busy ? 'Oluşturuluyor…' : 'Yeni Talep Oluştur'}
         </button>
       </form>
     </Dialog>

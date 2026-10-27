@@ -1,3 +1,4 @@
+import { PageQuery } from '../../../common/pagination.dto';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
@@ -6,6 +7,8 @@ import {
   Length,
   MaxLength,
   ValidateIf,
+  IsIn,
+  IsISO8601,
 } from 'class-validator';
 import { optional, trim } from '../../../common/pagination.dto';
 const email = ({ value }: { value: unknown }): unknown =>
@@ -24,9 +27,15 @@ export class CreateCustomerDto extends CustomerFields {
   @Transform(trim) @IsString() @Length(1, 200) name!: string;
 }
 export class UpdateCustomerDto extends CustomerFields {
+  @ValidateIf(optional) @IsISO8601({ strict: true }) expectedUpdatedAt?: string;
   @ValidateIf(optional)
   @Transform(trim)
   @IsString()
   @Length(1, 200)
   name?: string;
+}
+
+export class CustomerQuery extends PageQuery {
+  @IsIn(['createdAt:desc', 'createdAt:asc', 'name:asc', 'name:desc']) sort =
+    'createdAt:desc';
 }

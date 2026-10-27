@@ -38,7 +38,7 @@ Graphite navigation, porcelain surfaces and cyan focus signals frame compact ope
 
 `GET /dashboard/summary` uses the existing live authentication, organization guards and accessible-ticket policy. `GET /organization/members` exposes only public member projections for active users in the current organization; it supports bounded page/limit/search and optional teamId. Ticket lists now bulk-load SLA projections once per page, avoiding per-ticket queries. No schema migration or analytics subsystem is introduced.
 
-Incidents, attachments, portals, ingestion, AI, presence, typing, deep analytics, customer/team administration screens, durable activity history, and older-history pagination are deferred.
+Phase 7 adds customer/team administration, SLA policy controls and basic workspace/account settings; see [management UI](management-ui.md). Incidents, attachments, portals, ingestion, AI, presence, typing, deep analytics, durable activity history and older-history pagination remain deferred.
 
 ## Verification
 

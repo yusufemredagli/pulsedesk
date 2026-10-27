@@ -1,8 +1,9 @@
 'use client';
+import { notificationCopy } from '../../lib/presentation';
 import Link from 'next/link';
 import { useApplication } from '../application/provider';
 import { useResource } from './resource';
-import { type Summary, type Page, type Ticket, date } from './model';
+import { type Summary, type Page, type Ticket, date, words } from './model';
 import { Empty, ErrorState, Loading, TicketTable } from './ui';
 function Activity({
   id,
@@ -25,14 +26,14 @@ function Activity({
   );
   const title =
     name === 'ticket:assigned'
-      ? `assigned to ${ticket.data?.assignedMember?.name ?? ticket.data?.assignedTeam?.name ?? 'a responder'}`
+      ? `atandı: ${ticket.data?.assignedMember?.name ?? ticket.data?.assignedTeam?.name ?? 'bir sorumlu'}`
       : name === 'ticket:status-changed'
-        ? `${status ? status.toLowerCase().replaceAll('_', ' ') : 'status updated'}`
+        ? `${status ? words(status) : 'durum güncellendi'}`
         : name === 'ticket:comment-added'
-          ? 'new comment added'
+          ? 'yeni yorum eklendi'
           : name === 'ticket:created'
-            ? `${priority === 'URGENT' ? 'urgent ' : ''}ticket created`
-            : 'SLA notification received';
+            ? `${priority === 'URGENT' ? 'acil talep' : 'talep'} oluşturuldu`
+            : 'SLA bildirimi alındı';
   return (
     <li>
       <span className="activity-mark" />
@@ -42,7 +43,7 @@ function Activity({
             PD-{String(number).padStart(6, '0')}
           </Link>
         ) : (
-          <strong>Service alert</strong>
+          <strong>Hizmet Bildirimi</strong>
         )}
         <p>{title}</p>
         <time dateTime={at}>{date(at)}</time>
@@ -57,39 +58,39 @@ export function Dashboard() {
     '/tickets?limit=6&sort=updatedAt:desc',
   );
   const metrics = [
-    ['Open tickets', 'open', 'signal'],
-    ['Urgent tickets', 'urgent', 'danger'],
-    ['SLA at risk', 'atRisk', 'warning'],
-    ['SLA breached', 'breached', 'danger'],
-    ['Unassigned', 'unassigned', 'neutral'],
-    ['Active work', 'activeWork', 'signal'],
+    ['Açık Talepler', 'open', 'signal'],
+    ['Acil Talepler', 'urgent', 'danger'],
+    ['SLA Riskte', 'atRisk', 'warning'],
+    ['SLA Aşıldı', 'breached', 'danger'],
+    ['Atanmamış', 'unassigned', 'neutral'],
+    ['Aktif İşler', 'activeWork', 'signal'],
   ] as const;
   return (
     <div className="operations">
       <header className="ops-heading">
         <div>
-          <p className="eyebrow">OPERATIONS / LIVE OVERVIEW</p>
-          <h1>Command center</h1>
-          <p>Your queue, your commitments, one clear view.</p>
+          <p className="eyebrow">OPERASYONLAR / GENEL BAKIŞ</p>
+          <h1>Operasyon Merkezi</h1>
+          <p>Talepler ve hizmet hedefleri tek bir görünümde.</p>
         </div>
         <Link className="primary-button" href="/app/tickets">
-          Open ticket queue <span aria-hidden="true">↗</span>
+          Talepleri Aç <span aria-hidden="true">↗</span>
         </Link>
       </header>
       {summary.error ? (
         <ErrorState error={summary.error} retry={summary.refresh} />
       ) : (
-        <section className="metric-grid" aria-label="Operational summary">
+        <section className="metric-grid" aria-label="Operasyon özeti">
           {metrics.map(([label, key, tone]) => (
             <div className={`metric ${tone}`} key={key}>
               <span>{label}</span>
               <strong>{summary.data?.[key] ?? '—'}</strong>
               <small>
                 {summary.loading
-                  ? 'Updating…'
+                  ? 'Güncelleniyor…'
                   : key === 'open'
-                    ? 'Awaiting resolution'
-                    : 'Current accessible queue'}
+                    ? 'Çözüm bekleniyor'
+                    : 'Erişebildiğiniz talepler'}
               </small>
             </div>
           ))}
@@ -99,10 +100,10 @@ export function Dashboard() {
         <section className="ops-panel">
           <header className="panel-heading">
             <div>
-              <h2>Queue pulse</h2>
-              <p>Most recently updated tickets</p>
+              <h2>Talep Akışı</h2>
+              <p>Son güncellenen talepler</p>
             </div>
-            <Link href="/app/tickets">View all →</Link>
+            <Link href="/app/tickets">Tümünü Gör →</Link>
           </header>
           {tickets.error ? (
             <ErrorState error={tickets.error} retry={tickets.refresh} />
@@ -111,21 +112,21 @@ export function Dashboard() {
           ) : tickets.loading ? (
             <Loading />
           ) : (
-            <Empty title="A clear queue">
-              New tickets will appear here as work arrives.
+            <Empty title="Bekleyen talep yok">
+              Yeni talepler geldikçe burada görünecek.
             </Empty>
           )}
         </section>
         <aside className="ops-panel">
           <header className="panel-heading">
             <div>
-              <h2>Live operations</h2>
-              <p>Activity since you joined this workspace</p>
+              <h2>Canlı Operasyonlar</h2>
+              <p>Çalışma alanına girişinizden bu yana gerçekleşenler</p>
             </div>
             <span
               className={`ops-badge ${state.realtime === 'connected' ? 'healthy' : 'warning'}`}
             >
-              {state.realtime === 'connected' ? 'Live' : 'Paused'}
+              {state.realtime === 'connected' ? 'Canlı' : 'Bağlantı kesildi'}
             </span>
           </header>
           {state.events.length ? (
@@ -143,23 +144,23 @@ export function Dashboard() {
               ))}
             </ol>
           ) : (
-            <Empty title="Listening for movement">
-              Assignments, comments and lifecycle updates will appear here.
+            <Empty title="Henüz aktivite yok">
+              Atamalar, yorumlar ve durum değişiklikleri burada görünecek.
             </Empty>
           )}
           {state.notifications.slice(0, 2).map((notification) => (
             <div className="feed-alert" key={notification.id}>
-              <strong>{notification.title}</strong>
-              <p>{notification.message}</p>
+              <strong>{notificationCopy(notification).title}</strong>
+              <p>{notificationCopy(notification).message}</p>
               <time>{date(notification.createdAt)}</time>
             </div>
           ))}
         </aside>
       </div>
       <p className="ops-footnote">
-        Counts reflect tickets you can access. Open excludes resolved, closed
-        and cancelled work. SLA at risk means a pending deadline within 30
-        minutes.
+        Sayılar, erişebildiğiniz talepleri kapsar. Açık taleplere çözülen,
+        kapatılan ve iptal edilenler dahil değildir. SLA Riskte, hedef süresinin
+        dolmasına en fazla 30 dakika kaldığını belirtir.
       </p>
     </div>
   );

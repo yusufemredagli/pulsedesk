@@ -322,7 +322,7 @@ export class SessionClient {
           error:
             error instanceof ApiError
               ? error.message
-              : 'Workspace selection could not be completed. Try again.',
+              : 'Çalışma alanı seçilemedi. Tekrar deneyin.',
         });
       throw error;
     }
@@ -405,7 +405,7 @@ export class SessionClient {
         this.emit({
           status: 'restore-error',
           error:
-            'Your saved session could not be checked. Reconnect and try again.',
+            'Kayıtlı oturumunuz kontrol edilemedi. Bağlantınızı kontrol edip tekrar deneyin.',
         });
     }
   }

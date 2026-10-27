@@ -1,3 +1,5 @@
+import { ResourceVersionDto } from '../../common/resource-edit';
+import { PageQuery } from '../../common/pagination.dto';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -18,7 +20,7 @@ export class CreatePolicyDto {
   @IsInt() @Min(1) @Max(525600) resolutionMinutes!: number;
   @IsBoolean() isActive: boolean = true;
 }
-export class UpdatePolicyDto {
+export class UpdatePolicyDto extends ResourceVersionDto {
   @ValidateIf(optional)
   @Transform(trim)
   @IsString()
@@ -36,4 +38,8 @@ export class UpdatePolicyDto {
   @Max(525600)
   resolutionMinutes?: number;
   @ValidateIf(optional) @IsBoolean() isActive?: boolean;
+}
+
+export class PolicyQuery extends PageQuery {
+  @ValidateIf(optional) @IsEnum(TicketPriority) priority?: TicketPriority;
 }

@@ -27,7 +27,8 @@
         "SLA_QUEUE_PREFIX",
         "OUTBOX_POLL_INTERVAL_MS",
         "FRONTEND_ORIGINS"
-      ]
+      ],
+      "dependsOn": ["^build", "@pulsedesk/api#prisma:generate"]
     },
     "lint": {},
     "typecheck": {
@@ -41,6 +42,27 @@
     },
     "clean": {
       "cache": false
+    },
+    "prisma:generate": {
+      "cache": false
+    },
+    "worker:dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build", "@pulsedesk/api#prisma:generate"],
+      "passThroughEnv": [
+        "PORT",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "JWT_ACCESS_SECRET",
+        "NEXT_PUBLIC_API_URL",
+        "JWT_ACCESS_TTL",
+        "REFRESH_TOKEN_TTL",
+        "NODE_ENV",
+        "SLA_QUEUE_PREFIX",
+        "OUTBOX_POLL_INTERVAL_MS",
+        "FRONTEND_ORIGINS"
+      ]
     }
   }
 }

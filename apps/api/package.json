@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "prisma generate && nest start --watch",
+    "dev": "nest start --watch --preserveWatchOutput",
     "build": "prisma generate && nest build",
     "start": "node dist/main.js",
     "lint": "eslint .",
@@ -16,8 +16,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:status": "prisma migrate status",
     "worker": "node dist/worker.js",
-    "worker:dev": "prisma generate && tsx watch src/worker.ts",
-    "worker:recover": "node dist/worker/recover.js"
+    "worker:dev": "node --watch --watch-preserve-output --import tsx src/worker.ts",
+    "worker:recover": "node dist/worker/recover.js",
+    "seed": "prisma generate && tsx src/demo/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",

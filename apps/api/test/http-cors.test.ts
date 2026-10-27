@@ -43,6 +43,20 @@ test('browser HTTP CORS permits only configured frontend origins and bearer/tena
         .includes('x-organization-id'),
     );
     assert.equal(allowed.headers.get('access-control-allow-credentials'), null);
+    const removal = await fetch(`${url}/teams/example/members/example`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:3000',
+        'access-control-request-method': 'DELETE',
+        'access-control-request-headers': 'authorization,x-organization-id',
+      },
+    });
+    assert.equal(removal.status, 204);
+    assert.match(
+      removal.headers.get('access-control-allow-methods') ?? '',
+      /DELETE/,
+    );
+
     const denied = await fetch(`${url}/health`, {
       headers: { origin: 'https://foreign.example' },
     });

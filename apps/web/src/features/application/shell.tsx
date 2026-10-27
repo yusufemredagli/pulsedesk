@@ -1,4 +1,5 @@
 'use client';
+import { displayLabel, notificationCopy } from '../../lib/presentation';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -6,45 +7,43 @@ import { Brand, Icon, type IconName } from '../../components/brand';
 import { useApplication } from './provider';
 import { RouteGate } from '../auth/route-gate';
 import type { ReactNode } from 'react';
-const navigation: Array<{ label: string; icon: IconName; href?: string }> = [
-  { label: 'Overview', icon: 'grid', href: '/app/dashboard' },
-  { label: 'Tickets', icon: 'ticket', href: '/app/tickets' },
-  { label: 'Customers', icon: 'users' },
-  { label: 'Teams', icon: 'team' },
-  { label: 'Notifications', icon: 'bell', href: '/app/notifications' },
-  { label: 'SLA Policies', icon: 'clock' },
-  { label: 'Settings', icon: 'settings' },
+const navigation: Array<{ label: string; icon: IconName; href: string }> = [
+  { label: 'Genel Bakış', icon: 'grid', href: '/app/dashboard' },
+  { label: 'Talepler', icon: 'ticket', href: '/app/tickets' },
+  { label: 'Müşteriler', icon: 'users', href: '/app/customers' },
+  { label: 'Ekipler', icon: 'team', href: '/app/teams' },
+  { label: 'Bildirimler', icon: 'bell', href: '/app/notifications' },
+  { label: 'SLA Politikaları', icon: 'clock', href: '/app/sla-policies' },
+  { label: 'Ayarlar', icon: 'settings', href: '/app/settings' },
 ];
 function Navigation({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
   return (
     <nav
-      aria-label={mobile ? 'Mobile primary navigation' : 'Primary navigation'}
+      aria-label={mobile ? 'Mobil ana gezinme' : 'Ana gezinme'}
       className="navigation"
     >
-      {navigation.map((item) =>
-        item.href ? (
-          <Link
-            key={item.label}
-            href={item.href}
-            onClick={(event) => {
-              const details = event.currentTarget.closest('details');
-              if (details) details.open = false;
-            }}
-            aria-current={pathname === item.href ? 'page' : undefined}
-          >
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-            {pathname === item.href && <span className="nav-active-dot" />}
-          </Link>
-        ) : (
-          <span className="nav-disabled" key={item.label} aria-disabled="true">
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-            <span className="soon">Soon</span>
-          </span>
-        ),
-      )}
+      {navigation.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          onClick={(event) => {
+            const details = event.currentTarget.closest('details');
+            if (details) details.open = false;
+          }}
+          aria-current={
+            pathname === item.href || pathname.startsWith(item.href + '/')
+              ? 'page'
+              : undefined
+          }
+        >
+          <Icon name={item.icon} />
+          <span>{item.label}</span>
+          {(pathname === item.href || pathname.startsWith(item.href + '/')) && (
+            <span className="nav-active-dot" />
+          )}
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -53,41 +52,41 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
   const { user, selected } = state.session;
   const statusLabel =
     state.realtime === 'connected'
-      ? 'Live updates connected'
+      ? 'Canlı bağlantı etkin'
       : state.realtime === 'connecting'
-        ? 'Connecting live updates'
-        : 'Live updates paused';
+        ? 'Canlı bağlantı kuruluyor'
+        : 'Canlı bağlantı kullanılamıyor';
   return (
     <RouteGate area="application">
       <div className="application-shell">
         <a className="skip-link" href="#workspace-content">
-          Skip to workspace
+          İçeriğe geç
         </a>
         <aside className="sidebar">
           <Link href="/app" className="brand-link">
             <Brand />
           </Link>
-          <div className="sidebar-section-label">WORKSPACE</div>
+          <div className="sidebar-section-label">ÇALIŞMA ALANI</div>
           <Navigation />
           <div className="sidebar-bottom">
             <div className="sidebar-signal">
               <span
                 className={`status-dot ${state.realtime === 'connected' ? 'healthy' : ''}`}
               />
-              <span>Built for a steady response</span>
+              <span>Tutarlı destek için tasarlandı</span>
             </div>
             <div className="sidebar-user">
               <span className="user-avatar">
-                {user?.name.slice(0, 1).toUpperCase()}
+                {user?.name.slice(0, 1).toLocaleUpperCase('tr-TR')}
               </span>
               <span className="user-copy">
                 <strong>{user?.name}</strong>
-                <span>{selected?.role.toLowerCase()}</span>
+                <span>{displayLabel(selected?.role)}</span>
               </span>
               <button
                 className="icon-button"
-                aria-label="Sign out"
-                title="Sign out"
+                aria-label="Çıkış Yap"
+                title="Çıkış Yap"
                 onClick={() => void client.logout()}
               >
                 <Icon name="logout" size={18} />
@@ -100,7 +99,7 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
             <div className="topbar-left">
               <div className="mobile-menu">
                 <details>
-                  <summary aria-label="Open navigation">
+                  <summary aria-label="Gezinmeyi Aç">
                     <Brand compact />
                   </summary>
                   <div className="mobile-navigation-panel">
@@ -109,21 +108,23 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
                       className="text-button"
                       onClick={() => void client.logout()}
                     >
-                      Sign out
+                      Çıkış Yap
                     </button>
                   </div>
                 </details>
               </div>
               <span className="topbar-breadcrumb">
-                Workspace <span>/</span>
+                Çalışma Alanı <span>/</span>
               </span>
               <button
                 className="organization-switcher"
                 onClick={client.clearOrganization}
-                aria-label={`Switch organization, current ${selected?.organizationName}`}
+                aria-label={`Çalışma Alanını Değiştir, geçerli alan: ${selected?.organizationName}`}
               >
                 <span className="workspace-monogram">
-                  {selected?.organizationName.slice(0, 1).toUpperCase()}
+                  {selected?.organizationName
+                    .slice(0, 1)
+                    .toLocaleUpperCase('tr-TR')}
                 </span>
                 <strong>{selected?.organizationName}</strong>
                 <span className="switch-chevron">⌄</span>
@@ -139,7 +140,7 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
               </span>
               <NotificationBell key={state.tenantRevision} />
               <span className="topbar-avatar" title={user?.name}>
-                {user?.name.slice(0, 1).toUpperCase()}
+                {user?.name.slice(0, 1).toLocaleUpperCase('tr-TR')}
               </span>
             </div>
           </header>
@@ -155,7 +156,7 @@ export function ApplicationShell({ children }: { children: ReactNode }) {
               PulseDesk <span className="footer-divider">/</span>{' '}
               {selected?.organizationName}
             </span>
-            <span>One team. A coordinated response.</span>
+            <span>Tek ekip. Koordine bir yanıt.</span>
           </footer>
         </div>
       </div>
@@ -176,7 +177,7 @@ function NotificationBell() {
     try {
       await client.markRead(id);
     } catch {
-      setError('Could not mark this alert as read. Please try again.');
+      setError('Bildirim okundu olarak işaretlenemedi. Lütfen tekrar deneyin.');
     } finally {
       lock.current = false;
       setBusy(false);
@@ -186,7 +187,7 @@ function NotificationBell() {
     <details className="notification-preview">
       <summary
         className="notification-bell"
-        aria-label={`Notifications, ${state.unread ?? 'unknown'} unread`}
+        aria-label={`Bildirimler, ${state.unread === null ? 'okunmamış sayısı bilinmiyor' : `${state.unread} okunmamış`}`}
       >
         <Icon name="bell" size={21} />
         {!!state.unread && (
@@ -197,22 +198,25 @@ function NotificationBell() {
       </summary>
       <div className="notification-popover">
         <header>
-          <strong>Notifications</strong>
-          <Link href="/app/notifications">View all</Link>
+          <strong>Bildirimler</strong>
+          <Link href="/app/notifications">Tümünü Gör</Link>
         </header>
         {(state.notificationError || error) && (
           <p role="alert">{error || state.notificationError}</p>
         )}
         {!state.notifications.length && (
-          <p>You’re all caught up. New service alerts will appear here.</p>
+          <p>
+            Tüm bildirimleri okudunuz. Yeni hizmet bildirimleri burada
+            görünecek.
+          </p>
         )}
         {state.notifications.map((item) => (
           <article key={item.id}>
-            <strong>{item.title}</strong>
-            <p>{item.message}</p>
-            <time>{new Date(item.createdAt).toLocaleString()}</time>
+            <strong>{notificationCopy(item).title}</strong>
+            <p>{notificationCopy(item).message}</p>
+            <time>{new Date(item.createdAt).toLocaleString('tr-TR')}</time>
             <button disabled={busy} onClick={() => void read(item.id)}>
-              Mark read
+              Okundu Olarak İşaretle
             </button>
           </article>
         ))}

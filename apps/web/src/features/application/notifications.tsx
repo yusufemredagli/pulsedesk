@@ -1,4 +1,5 @@
 'use client';
+import { notificationCopy } from '../../lib/presentation';
 import { useState } from 'react';
 import { Icon } from '../../components/brand';
 import { useApplication } from './provider';
@@ -12,9 +13,7 @@ export function Notifications() {
     try {
       await client.markRead(id);
     } catch {
-      setError(
-        'This notification could not be marked as read. Please try again.',
-      );
+      setError('Bildirim okundu olarak işaretlenemedi. Lütfen tekrar deneyin.');
     } finally {
       setPending(null);
     }
@@ -23,23 +22,25 @@ export function Notifications() {
     <>
       <div className="page-heading">
         <div>
-          <span className="overline">YOUR PERSONAL INBOX</span>
-          <h1>Notifications</h1>
-          <p>The latest unread updates for you in this workspace.</p>
+          <span className="overline">SİZE ÖZEL BİLDİRİMLER</span>
+          <h1>Bildirimler</h1>
+          <p>Bu çalışma alanında size gelen son okunmamış bildirimler.</p>
         </div>
         <button
           className="button secondary"
           disabled={state.notificationLoading}
           onClick={() => void client.loadNotifications()}
         >
-          <Icon name="refresh" size={16} /> Refresh inbox
+          <Icon name="refresh" size={16} /> Bildirimleri Yenile
         </button>
       </div>
       <section className="panel inbox-panel">
         <header className="panel-heading">
-          <h2>Unread notifications</h2>
+          <h2>Okunmamış Bildirimler</h2>
           <span className="count-label">
-            {state.unread === null ? 'Checking' : `${state.unread} unread`}
+            {state.unread === null
+              ? 'Kontrol ediliyor'
+              : `${state.unread} okunmamış`}
           </span>
         </header>
         {(state.notificationError || error) && (
@@ -50,7 +51,7 @@ export function Notifications() {
         {state.notificationLoading && state.unread === null ? (
           <div className="inbox-loading" aria-busy="true">
             <span className="spinner" />
-            <p>Checking your inbox</p>
+            <p>Bildirimleriniz kontrol ediliyor</p>
           </div>
         ) : state.notifications.length ? (
           <ul className="notification-list">
@@ -64,10 +65,10 @@ export function Notifications() {
                   />
                 </span>
                 <div>
-                  <h3>{note.title}</h3>
-                  <p>{note.message}</p>
+                  <h3>{notificationCopy(note).title}</h3>
+                  <p>{notificationCopy(note).message}</p>
                   <time dateTime={note.createdAt}>
-                    {new Date(note.createdAt).toLocaleString()}
+                    {new Date(note.createdAt).toLocaleString('tr-TR')}
                   </time>
                 </div>
                 <button
@@ -75,7 +76,9 @@ export function Notifications() {
                   disabled={pending !== null}
                   onClick={() => void read(note.id)}
                 >
-                  {pending === note.id ? 'Saving' : 'Mark read'}
+                  {pending === note.id
+                    ? 'Kaydediliyor'
+                    : 'Okundu Olarak İşaretle'}
                 </button>
               </li>
             ))}
@@ -85,13 +88,13 @@ export function Notifications() {
             <div className="empty-orbit">
               <Icon name="check" size={26} />
             </div>
-            <h3>You’re all caught up.</h3>
-            <p>New updates will appear here as they arrive.</p>
+            <h3>Tüm bildirimleri okudunuz.</h3>
+            <p>Yeni bildirimler geldikçe burada görünecek.</p>
           </div>
         ) : null}
         <footer className="inbox-footnote">
-          Showing up to five recent unread notifications. Your inbox stays
-          available when live updates are paused.
+          Son beş okunmamış bildirim gösteriliyor. Canlı bağlantı kesildiğinde
+          de bildirimlerinize erişebilirsiniz.
         </footer>
       </section>
     </>

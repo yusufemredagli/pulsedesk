@@ -13,8 +13,11 @@ import { OrganizationAccess } from '../auth/decorators/organization-access.decor
 import type { TenantContext } from '../auth/types/request-context';
 import { validationFor } from '../../common/validation';
 import { MANAGERS } from '../../common/domain-transaction.service';
-import { PageQuery } from '../../common/pagination.dto';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+  CustomerQuery,
+} from './dto/customer.dto';
 import { CustomersService } from './customers.service';
 import { Inject } from '@nestjs/common';
 @Controller('customers')
@@ -34,7 +37,7 @@ export class CustomersController {
   @OrganizationAccess()
   list(
     @CurrentTenant() context: TenantContext,
-    @Query(validationFor(PageQuery)) query: PageQuery,
+    @Query(validationFor(CustomerQuery)) query: CustomerQuery,
   ) {
     return this.service.list(context, query);
   }

@@ -1,3 +1,4 @@
+import { displayLabel } from '../../lib/presentation';
 export const STATUSES = [
   'OPEN',
   'TRIAGED',
@@ -78,27 +79,27 @@ export type Summary = {
   activeWork: number;
   asOf: string;
 };
-export const words = (value: string) =>
-  value.toLowerCase().replaceAll('_', ' ');
+export const words = (value: string) => displayLabel(value);
 export const date = (value: string) =>
-  new Date(value).toLocaleString(undefined, {
+  new Date(value).toLocaleString('tr-TR', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
 export function slaState(sla: Sla, status: string, now = Date.now()) {
-  if (sla.breachedAt) return { label: 'Breached', tone: 'danger' };
-  if (sla.completedAt) return { label: 'Completed', tone: 'healthy' };
-  if (status === 'CANCELLED') return { label: 'Cancelled', tone: 'neutral' };
+  if (sla.breachedAt) return { label: 'Aşıldı', tone: 'danger' };
+  if (sla.completedAt) return { label: 'Tamamlandı', tone: 'healthy' };
+  if (status === 'CANCELLED') return { label: 'İptal Edildi', tone: 'neutral' };
   const minutes = Math.ceil((Date.parse(sla.dueAt) - now) / 60000);
-  if (minutes <= 0) return { label: 'Breached', tone: 'danger' };
-  if (minutes <= 30) return { label: `At risk · ${minutes}m`, tone: 'warning' };
+  if (minutes <= 0) return { label: 'Aşıldı', tone: 'danger' };
+  if (minutes <= 30)
+    return { label: `Riskte · ${minutes} dk`, tone: 'warning' };
   return {
     label:
       minutes < 120
-        ? `Due in ${minutes}m`
-        : `Due in ${Math.ceil(minutes / 60)}h`,
+        ? `Kalan Süre: ${minutes} dk`
+        : `Kalan Süre: ${Math.ceil(minutes / 60)} sa`,
     tone: 'signal',
   };
 }
@@ -121,21 +122,21 @@ export function timeline(ticket: Ticket) {
       id: `status:${row.id}`,
       at: row.createdAt,
       kind: 'status',
-      title: `${row.changedBy?.name ?? 'Former member'} · ${words(row.toStatus)}`,
+      title: `${row.changedBy?.name ?? 'Eski üye'} · ${words(row.toStatus)}`,
       body: row.reason,
     })),
     ...ticket.assignmentHistory.map((row) => ({
       id: `assignment:${row.id}`,
       at: row.createdAt,
       kind: 'assignment',
-      title: `${row.assignedBy?.name ?? 'Former member'} assigned ${[row.assignedTeam?.name, row.assignedMember?.name].filter(Boolean).join(' / ')}`,
+      title: `${row.assignedBy?.name ?? 'Eski üye'} atama yaptı: ${[row.assignedTeam?.name, row.assignedMember?.name].filter(Boolean).join(' / ')}`,
       body: null,
     })),
     ...ticket.comments.map((row) => ({
       id: `comment:${row.id}`,
       at: row.createdAt,
       kind: row.visibility,
-      title: `${row.author?.name ?? 'Former member'} · ${words(row.visibility)} comment`,
+      title: `${row.author?.name ?? 'Eski üye'} · ${words(row.visibility)} yorum`,
       body: row.body,
     })),
   ].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));

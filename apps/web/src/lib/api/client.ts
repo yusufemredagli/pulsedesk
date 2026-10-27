@@ -9,7 +9,7 @@ export class ApiError extends Error {
 }
 export class StaleContextError extends Error {
   constructor() {
-    super('The workspace context changed.');
+    super('Çalışma alanı değişti.');
     this.name = 'AbortError';
   }
 }
@@ -17,15 +17,15 @@ function safeMessage(status: number): string {
   return (
     (
       {
-        0: 'The service could not be reached. Check your connection and try again.',
-        400: 'Check your details and try again.',
-        401: 'Your session could not be verified. Please sign in again.',
-        403: 'You do not have access to this workspace or action.',
-        404: 'This item is no longer available.',
-        409: 'These details conflict with an existing record. Refresh and try again.',
-        429: 'Too many attempts. Please wait a moment before trying again.',
+        0: 'Hizmete ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.',
+        400: 'Bilgilerinizi kontrol edip tekrar deneyin.',
+        401: 'Oturumunuz doğrulanamadı. Lütfen yeniden giriş yapın.',
+        403: 'Bu çalışma alanına erişmek veya bu işlemi gerçekleştirmek için yetkiniz yok.',
+        404: 'Bu kayıt artık mevcut değil.',
+        409: 'Bu bilgiler mevcut bir kayıtla çakışıyor. Yenileyip tekrar deneyin.',
+        429: 'Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.',
       } as Record<number, string>
-    )[status] ?? 'The service is temporarily unavailable. Please try again.'
+    )[status] ?? 'Hizmet geçici olarak kullanılamıyor. Lütfen tekrar deneyin.'
   );
 }
 export function apiBaseUrl(value: string | undefined): string {
@@ -43,7 +43,7 @@ export function apiBaseUrl(value: string | undefined): string {
       throw new Error();
     return url.origin;
   } catch {
-    throw new Error('The application API address is not configured correctly.');
+    throw new Error('Uygulamanın API adresi doğru yapılandırılmamış.');
   }
 }
 export type Fetcher = typeof fetch;

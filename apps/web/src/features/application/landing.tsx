@@ -1,13 +1,14 @@
 'use client';
+import { displayLabel } from '../../lib/presentation';
 import Link from 'next/link';
 import { Icon } from '../../components/brand';
 import { useApplication } from './provider';
 const eventLabels = {
-  'ticket:created': 'Ticket created',
-  'ticket:assigned': 'Assignment changed',
-  'ticket:status-changed': 'Ticket status changed',
-  'ticket:comment-added': 'Comment added',
-  'notification:new': 'Notification received',
+  'ticket:created': 'Talep oluşturuldu',
+  'ticket:assigned': 'Atama değişti',
+  'ticket:status-changed': 'Talep durumu değişti',
+  'ticket:comment-added': 'Yorum eklendi',
+  'notification:new': 'Bildirim alındı',
 };
 export function Landing() {
   const { state } = useApplication();
@@ -16,11 +17,11 @@ export function Landing() {
     <>
       <div className="page-heading">
         <div>
-          <span className="overline">YOUR OPERATIONS WORKSPACE</span>
-          <h1>A clear place to start.</h1>
+          <span className="overline">OPERASYON ÇALIŞMA ALANINIZ</span>
+          <h1>Net bir başlangıç.</h1>
           <p>
-            Welcome, {user?.name.split(' ')[0]}. Your team’s next response
-            starts here.
+            Hoş geldin, {user?.name.split(' ')[0]}. Ekibinizin bir sonraki
+            yanıtı burada başlar.
           </p>
         </div>
         <span className="workspace-tag">
@@ -33,15 +34,15 @@ export function Landing() {
           <Icon name="signal" size={34} />
         </div>
         <div className="welcome-copy">
-          <span className="eyebrow">READY FOR YOUR TEAM</span>
+          <span className="eyebrow">EKİBİNİZ İÇİN HAZIR</span>
           <h2>
-            Less noise.
+            Daha az karmaşa.
             <br />
-            More coordinated support.
+            Daha koordineli destek.
           </h2>
           <p>
-            Your workspace brings the people, context, and signals behind every
-            response into focus.
+            Çalışma alanınız, her yanıtın arkasındaki ekibi, bilgiyi ve
+            sinyalleri bir araya getirir.
           </p>
         </div>
         <div className="welcome-orbit" aria-hidden="true">
@@ -53,15 +54,15 @@ export function Landing() {
           </svg>
         </div>
       </section>
-      <section className="workspace-facts" aria-label="Current workspace">
+      <section className="workspace-facts" aria-label="Geçerli çalışma alanı">
         <div className="fact-card">
           <span className="fact-icon">
             <Icon name="team" />
           </span>
           <div>
-            <span className="fact-label">ACTIVE WORKSPACE</span>
+            <span className="fact-label">AKTİF ÇALIŞMA ALANI</span>
             <strong>{selected?.organizationName}</strong>
-            <span>Your current organization</span>
+            <span>Geçerli çalışma alanınız</span>
           </div>
         </div>
         <div className="fact-card">
@@ -69,11 +70,11 @@ export function Landing() {
             <Icon name="shield" />
           </span>
           <div>
-            <span className="fact-label">YOUR ACCESS</span>
+            <span className="fact-label">YETKİNİZ</span>
             <strong className="capitalize">
-              {selected?.role.toLowerCase()}
+              {displayLabel(selected?.role)}
             </strong>
-            <span>Verified workspace membership</span>
+            <span>Doğrulanmış çalışma alanı üyeliği</span>
           </div>
         </div>
         <Link href="/app/notifications" className="fact-card fact-link">
@@ -81,16 +82,16 @@ export function Landing() {
             <Icon name="bell" />
           </span>
           <div>
-            <span className="fact-label">YOUR INBOX</span>
+            <span className="fact-label">BİLDİRİMLERİNİZ</span>
             <strong>
               {state.unread === null
-                ? 'Checking your inbox'
-                : `${state.unread} unread ${state.unread === 1 ? 'notification' : 'notifications'}`}
+                ? 'Bildirimleriniz kontrol ediliyor'
+                : `${state.unread} okunmamış bildirim`}
             </strong>
             <span>
               {state.notificationError
-                ? 'Refresh your inbox to try again'
-                : 'Updates for your attention'}
+                ? 'Tekrar denemek için bildirimlerinizi yenileyin'
+                : 'İlginizi bekleyen bildirimler'}
             </span>
           </div>
           <Icon name="arrow" size={18} />
@@ -100,21 +101,21 @@ export function Landing() {
         <section className="panel activity-panel">
           <header className="panel-heading">
             <div>
-              <span className="overline">WORKSPACE SIGNALS</span>
-              <h2>Recent activity</h2>
+              <span className="overline">ÇALIŞMA ALANI AKIŞI</span>
+              <h2>Son Aktiviteler</h2>
             </div>
-            <span className="small-label">This session</span>
+            <span className="small-label">Bu oturum</span>
           </header>
           {state.events.length === 0 ? (
             <div className="empty-activity">
               <div className="empty-orbit">
                 <Icon name="signal" size={25} />
               </div>
-              <h3>A quiet signal, for now.</h3>
+              <h3>Henüz aktivite yok.</h3>
               <p>
-                Updates will appear here as your team works.
+                Ekibiniz çalıştıkça güncellemeler burada görünecek.
                 <br />
-                Your workspace is ready when you are.
+                Çalışma alanınız hazır.
               </p>
             </div>
           ) : (
@@ -132,11 +133,11 @@ export function Landing() {
                     <span>
                       {event.ticketNumber
                         ? `PD-${String(event.ticketNumber).padStart(6, '0')}`
-                        : 'Your personal inbox'}
+                        : 'Size özel bildirimler'}
                     </span>
                   </div>
                   <time dateTime={event.occurredAt}>
-                    {new Date(event.occurredAt).toLocaleTimeString([], {
+                    {new Date(event.occurredAt).toLocaleTimeString('tr-TR', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
@@ -150,25 +151,25 @@ export function Landing() {
           <span className="focus-icon">
             <Icon name="shield" size={24} />
           </span>
-          <span className="overline">A FOCUSED WORKSPACE</span>
+          <span className="overline">ODAKLI BİR ÇALIŞMA ALANI</span>
           <h2>
-            The right context.
+            Doğru bilgi.
             <br />
-            The right team.
+            Doğru ekip.
           </h2>
           <p>
-            You’re working in <strong>{selected?.organizationName}</strong>.
-            Switch workspaces whenever your focus changes.
+            <strong>{selected?.organizationName}</strong> çalışma alanındasınız.
+            İhtiyaç duyduğunuzda çalışma alanını değiştirebilirsiniz.
           </p>
           <div className="focus-divider" />
           <p className="focus-note">
             <Icon name="signal" size={17} />
             {state.realtime === 'connected'
-              ? 'Live signals are connected.'
-              : 'Your workspace stays available while live updates reconnect.'}
+              ? 'Canlı bağlantı etkin.'
+              : 'Canlı bağlantı yeniden kurulurken çalışma alanınızı kullanabilirsiniz.'}
           </p>
           <Link href="/app/notifications" className="inline-link">
-            Open your notifications <Icon name="arrow" size={16} />
+            Bildirimleri Aç <Icon name="arrow" size={16} />
           </Link>
         </section>
       </div>

@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\"",
     "test": "tsx --test test/*.test.ts",
-    "test:browser": "node test/browser/operations.mjs"
+    "test:browser": "node test/browser/operations.mjs",
+    "test:browser:management": "node test/browser/management.mjs"
   },
   "dependencies": {
     "@pulsedesk/shared": "workspace:*",

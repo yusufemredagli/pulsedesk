@@ -268,7 +268,8 @@ export class ApplicationClient {
             return;
           }
           this.publish({
-            notificationError: 'Your inbox could not be refreshed. Try again.',
+            notificationError:
+              'Bildirimleriniz güncellenemedi. Tekrar deneyin.',
           });
         } finally {
           if (revision === this.session.scope().revision)

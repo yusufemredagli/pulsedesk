@@ -8,14 +8,14 @@ import { type Ticket, commands, date, timeline, words } from './model';
 import { Badge, Empty, ErrorState, Loading, SlaBadges } from './ui';
 import { Dialog, Lookup } from './forms';
 const labels: Record<string, string> = {
-  triage: 'Triage',
-  assign: 'Assign',
-  cancel: 'Cancel ticket',
-  start: 'Start work',
-  'wait-for-customer': 'Wait for customer',
-  resume: 'Resume work',
-  resolve: 'Resolve',
-  close: 'Close ticket',
+  triage: 'İncele',
+  assign: 'Ata',
+  cancel: 'İptal Et',
+  start: 'Başlat',
+  'wait-for-customer': 'Müşteriyi Bekle',
+  resume: 'Devam Et',
+  resolve: 'Çöz',
+  close: 'Kapat',
 };
 export function TicketDetail({ id }: { id: string }) {
   const { state } = useApplication();
@@ -53,10 +53,10 @@ function Detail({ id }: { id: string }) {
     } catch (error) {
       setMessage(
         error instanceof ApiError && error.status === 409
-          ? 'This ticket was updated by another user. Review the refreshed ticket and try again.'
+          ? 'Bu talep başka bir kullanıcı tarafından güncellendi. Güncel talebi inceleyip tekrar deneyin.'
           : error instanceof Error
             ? error.message
-            : 'Please try again.',
+            : 'Lütfen tekrar deneyin.',
       );
       if (
         command === 'comments' &&
@@ -64,7 +64,7 @@ function Detail({ id }: { id: string }) {
         error.status === 0
       ) {
         setMessage(
-          'The response could not be confirmed. Review the refreshed timeline before sending this comment again.',
+          'İşlemin sonucu doğrulanamadı. Yorumu yeniden göndermeden önce güncel zaman akışını kontrol edin.',
         );
         result.refresh();
       }
@@ -84,23 +84,23 @@ function Detail({ id }: { id: string }) {
   return (
     <div className="operations">
       <Link className="back-link" href="/app/tickets">
-        ← Ticket queue
+        ← Talepler
       </Link>
       <header className="ops-heading ticket-heading">
         <div>
           <p className="eyebrow">
-            {ticket.reference} <span> / VERSION {ticket.version}</span>
+            {ticket.reference} <span> / SÜRÜM {ticket.version}</span>
           </p>
           <h1>{ticket.subject}</h1>
           <div className="ticket-header-meta">
             <Badge value={ticket.priority} />
             <Badge value={ticket.status} />
             <span>{ticket.customer.name}</span>
-            <span>Created {date(ticket.createdAt)}</span>
+            <span>Oluşturulma: {date(ticket.createdAt)}</span>
           </div>
         </div>
         <button disabled={result.loading} onClick={result.refresh}>
-          Refresh
+          Yenile
         </button>
       </header>
       {message && (
@@ -111,10 +111,10 @@ function Detail({ id }: { id: string }) {
       <div className="command-bar">
         <span>
           {role === 'VIEWER'
-            ? 'Read-only workspace access'
+            ? 'Bu çalışma alanında yalnızca görüntüleme yetkiniz var'
             : available.length
-              ? 'Next steps'
-              : 'Workflow complete'}
+              ? 'Sonraki adımlar'
+              : 'Yapılabilecek işlem yok'}
         </span>
         <div>
           {available.map((command) => (
@@ -153,34 +153,34 @@ function Detail({ id }: { id: string }) {
       <div className="detail-grid">
         <div>
           <section className="ops-panel detail-section">
-            <h2>Overview</h2>
+            <h2>Genel Bakış</h2>
             <p className="ticket-description">{ticket.description}</p>
             <dl className="overview-facts">
               <div>
-                <dt>Customer</dt>
+                <dt>Müşteri</dt>
                 <dd>{ticket.customer.name}</dd>
               </div>
               <div>
-                <dt>Source</dt>
+                <dt>Kaynak</dt>
                 <dd>{words(ticket.source)}</dd>
               </div>
               <div>
-                <dt>Last updated</dt>
+                <dt>Son Güncelleme</dt>
                 <dd>{date(ticket.updatedAt)}</dd>
               </div>
               <div>
-                <dt>Version</dt>
+                <dt>Sürüm</dt>
                 <dd>{ticket.version}</dd>
               </div>
               {ticket.resolvedAt && (
                 <div>
-                  <dt>Resolved</dt>
+                  <dt>Çözülme</dt>
                   <dd>{date(ticket.resolvedAt)}</dd>
                 </div>
               )}
               {ticket.closedAt && (
                 <div>
-                  <dt>Closed</dt>
+                  <dt>Kapanma</dt>
                   <dd>{date(ticket.closedAt)}</dd>
                 </div>
               )}
@@ -189,17 +189,17 @@ function Detail({ id }: { id: string }) {
           <section className="ops-panel detail-section">
             <header className="panel-heading">
               <div>
-                <h2>Timeline</h2>
-                <p>The conversation and decisions behind this ticket</p>
+                <h2>Zaman Akışı</h2>
+                <p>Bu talebe ait görüşmeler ve kararlar</p>
               </div>
               <span className="ops-badge neutral">
-                {timeline(ticket).length} entries
+                {timeline(ticket).length} kayıt
               </span>
             </header>
             {Object.values(ticket.historyHasMore).some(Boolean) && (
               <p className="ops-footnote">
-                Showing the most recent 100 records of each type. Earlier
-                history is retained by the service.
+                Her kayıt türünün son 100 kaydı gösteriliyor. Önceki kayıtlar
+                sistemde saklanır.
               </p>
             )}
             {timeline(ticket).length ? (
@@ -227,18 +227,18 @@ function Detail({ id }: { id: string }) {
                 ))}
               </ol>
             ) : (
-              <Empty title="The story starts here">
-                Changes and comments will build a shared record of this ticket.
+              <Empty title="Talebin geçmişi burada oluşacak">
+                Değişiklikler ve yorumlar bu talebin ortak kaydını oluşturacak.
               </Empty>
             )}
           </section>
           {role !== 'VIEWER' && (
             <section className="ops-panel detail-section">
-              <h2>Add a comment</h2>
+              <h2>Yorum Ekle</h2>
               <p className="muted">
                 {visibility === 'INTERNAL'
-                  ? 'Internal notes are visible to authorized workspace staff.'
-                  : 'Public replies are recorded for the customer conversation. No email is sent.'}
+                  ? 'Dahili notları yalnızca yetkili çalışma alanı üyeleri görebilir.'
+                  : 'Müşteriye yanıtlar görüşme kaydına eklenir. E-posta gönderilmez.'}
               </p>
               <form
                 className={`comment-form ${visibility === 'INTERNAL' ? 'internal-composer' : ''}`}
@@ -249,19 +249,19 @@ function Detail({ id }: { id: string }) {
                 }}
               >
                 <label>
-                  Visibility
+                  Görünürlük
                   <select
                     disabled={busy}
-                    aria-label="Visibility"
+                    aria-label="Görünürlük"
                     value={visibility}
                     onChange={(event) => setVisibility(event.target.value)}
                   >
-                    <option value="INTERNAL">Internal note · staff only</option>
-                    <option value="PUBLIC">Public reply</option>
+                    <option value="INTERNAL">Dahili Not · yalnızca ekip</option>
+                    <option value="PUBLIC">Müşteriye Yanıt</option>
                   </select>
                 </label>
                 <label>
-                  Comment
+                  Yorum
                   <textarea
                     required
                     maxLength={10000}
@@ -271,8 +271,8 @@ function Detail({ id }: { id: string }) {
                     onChange={(event) => setComment(event.target.value)}
                     placeholder={
                       visibility === 'INTERNAL'
-                        ? 'Share context with your team…'
-                        : 'Write a customer-facing reply…'
+                        ? 'Ekibiniz için bir not yazın…'
+                        : 'Müşteriye bir yanıt yazın…'
                     }
                   />
                 </label>
@@ -281,16 +281,16 @@ function Detail({ id }: { id: string }) {
                   disabled={busy || !comment.trim()}
                 >
                   {busy
-                    ? 'Saving…'
+                    ? 'Kaydediliyor…'
                     : visibility === 'INTERNAL'
-                      ? 'Add internal note'
-                      : 'Add public reply'}
+                      ? 'Dahili Not Ekle'
+                      : 'Müşteriye Yanıt Ekle'}
                 </button>
               </form>
               {!ticket.comments.length && (
                 <p className="ops-footnote">
-                  No comments yet. Add the first response or leave context for
-                  your team.
+                  Henüz yorum yok. İlk yanıtı yazın veya ekibiniz için bir not
+                  ekleyin.
                 </p>
               )}
             </section>
@@ -298,12 +298,12 @@ function Detail({ id }: { id: string }) {
         </div>
         <aside>
           <section className="ops-panel detail-section">
-            <h2>Assignment</h2>
+            <h2>Atama</h2>
             <dl>
-              <dt>Team</dt>
-              <dd>{ticket.assignedTeam?.name ?? 'No team assigned'}</dd>
-              <dt>Responder</dt>
-              <dd>{ticket.assignedMember?.name ?? 'No member assigned'}</dd>
+              <dt>Ekip</dt>
+              <dd>{ticket.assignedTeam?.name ?? 'Ekip atanmamış'}</dd>
+              <dt>Sorumlu Kişi</dt>
+              <dd>{ticket.assignedMember?.name ?? 'Kişi atanmamış'}</dd>
             </dl>
             {available.includes('assign') && (
               <button
@@ -322,44 +322,45 @@ function Detail({ id }: { id: string }) {
                   setAction('assign');
                 }}
               >
-                Manage assignment
+                Atamayı Düzenle
               </button>
             )}
           </section>
           <section className="ops-panel detail-section">
-            <h2>Service commitments</h2>
+            <h2>SLA Hedefleri</h2>
             <SlaBadges ticket={ticket} />
             {ticket.sla.map((sla) => (
               <div className="sla-detail" key={sla.id}>
                 <strong>{words(sla.type)}</strong>
-                <span>Due {date(sla.dueAt)}</span>
+                <span>Hedef: {date(sla.dueAt)}</span>
                 {sla.completedAt && (
-                  <span>Completed {date(sla.completedAt)}</span>
+                  <span>Tamamlanma: {date(sla.completedAt)}</span>
                 )}
                 {sla.breachedAt && (
                   <span className="inline-error">
-                    Breached {date(sla.breachedAt)}
+                    Aşılma: {date(sla.breachedAt)}
                   </span>
                 )}
               </div>
             ))}
             <p className="ops-footnote">
-              At risk: a pending deadline within 30 minutes. A past deadline is
-              shown as breached even while live processing catches up.
+              Riskte: Hedef süresinin dolmasına en fazla 30 dakika kaldı. Süre
+              dolduğunda, sistem kaydı güncellenene kadar da hedef aşılmış
+              olarak gösterilir.
             </p>
           </section>
           <section className="detail-note">
-            <strong>One authoritative record</strong>
+            <strong>Tek ve güncel kayıt</strong>
             <p>
-              Changes are checked against version {ticket.version}. Live updates
-              refresh this view automatically.
+              Değişiklikler {ticket.version}. sürüme göre kontrol edilir. Canlı
+              güncellemeler bu ekranı otomatik olarak yeniler.
             </p>
           </section>
         </aside>
       </div>
       {action && (
         <Dialog
-          title={labels[action] ?? 'Ticket action'}
+          title={labels[action] ?? 'Talep İşlemi'}
           busy={busy}
           close={() => setAction(null)}
         >
@@ -368,7 +369,7 @@ function Detail({ id }: { id: string }) {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
               if (action === 'assign' && !team && !member) {
-                setMessage('Choose a team or a member.');
+                setMessage('Bir ekip veya kişi seçin.');
                 return;
               }
               void mutate(action, {
@@ -388,11 +389,11 @@ function Detail({ id }: { id: string }) {
               {action === 'assign' ? (
                 <>
                   <p>
-                    Choose a team, a responder, or both. Selecting a team
-                    narrows the member directory.
+                    Bir ekip, kişi veya her ikisini seçin. Ekip seçtiğinizde
+                    yalnızca o ekibin üyeleri listelenir.
                   </p>
                   <Lookup
-                    label="Team"
+                    label="Ekip"
                     path="/teams"
                     value={team}
                     onChange={(value) => {
@@ -402,7 +403,7 @@ function Detail({ id }: { id: string }) {
                   />
                   <Lookup
                     key={team?.id ?? 'all'}
-                    label="Member"
+                    label="Kişi"
                     path={`/organization/members${team ? `?teamId=${team.id}` : ''}`}
                     value={member}
                     onChange={setMember}
@@ -410,13 +411,13 @@ function Detail({ id }: { id: string }) {
                 </>
               ) : action === 'cancel' ? (
                 <label>
-                  Cancellation reason
+                  İptal Nedeni
                   <textarea name="reason" required maxLength={1000} rows={3} />
                 </label>
               ) : (
                 <p>
-                  {labels[action]} for {ticket.reference}? This records a new
-                  lifecycle event.
+                  {ticket.reference} için “{labels[action]}” işlemini onaylıyor
+                  musunuz? Bu işlem yeni bir durum kaydı oluşturur.
                 </p>
               )}
             </fieldset>
@@ -431,10 +432,10 @@ function Detail({ id }: { id: string }) {
                 disabled={busy}
                 onClick={() => setAction(null)}
               >
-                Go back
+                Geri Dön
               </button>
               <button className="primary-button" disabled={busy}>
-                {busy ? 'Saving…' : labels[action]}
+                {busy ? 'Kaydediliyor…' : labels[action]}
               </button>
             </footer>
           </form>

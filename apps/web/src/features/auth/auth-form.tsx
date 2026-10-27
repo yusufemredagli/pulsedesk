@@ -45,11 +45,11 @@ export function AuthForm({ register = false }: { register?: boolean }) {
       setError(
         failure instanceof ApiError
           ? failure.status === 401
-            ? 'That email and password could not be verified.'
+            ? 'E-posta adresi veya şifre doğrulanamadı.'
             : failure.status === 409
-              ? 'An account with these details already exists. Try signing in.'
+              ? 'Bu bilgilerle kayıtlı bir hesap var. Giriş yapmayı deneyin.'
               : failure.message
-          : 'We could not complete your request. Please try again.',
+          : 'İşleminiz tamamlanamadı. Lütfen tekrar deneyin.',
       );
     } finally {
       setPending(false);
@@ -99,14 +99,17 @@ export function AuthForm({ register = false }: { register?: boolean }) {
             <Brand />
           </Link>
           <div className="story-content">
-            <span className="eyebrow">THE SUPPORT OPERATIONS WORKSPACE</span>
+            <span className="eyebrow">
+              DESTEK OPERASYONLARININ ÇALIŞMA ALANI
+            </span>
             <h1>
-              Every signal.
-              <br />A clearer response.
+              Her sinyal.
+              <br />
+              Daha net bir yanıt.
             </h1>
             <p>
-              A focused home for the people keeping customers and operations
-              moving.
+              Müşteri ve operasyon akışını yöneten ekipler için odaklı bir
+              çalışma alanı.
             </p>
             <div className="signal-art" aria-hidden="true">
               <div className="signal-grid" />
@@ -116,12 +119,13 @@ export function AuthForm({ register = false }: { register?: boolean }) {
               </svg>
               <span className="signal-node" />
               <span className="art-caption">
-                Clarity at the center of your response.
+                Her yanıtın merkezinde netlik.
               </span>
             </div>
           </div>
           <div className="story-footer">
-            <span className="small-mark" /> One workspace. A coordinated team.
+            <span className="small-mark" /> Tek çalışma alanı. Koordine bir
+            ekip.
           </div>
         </section>
         <section className="auth-main">
@@ -131,46 +135,49 @@ export function AuthForm({ register = false }: { register?: boolean }) {
           <div className="auth-card">
             <span className="overline">
               {register
-                ? 'START WITH A CLEAR SIGNAL'
-                : 'YOUR WORKSPACE, IN FOCUS'}
+                ? 'NET BİR BAŞLANGIÇ YAPIN'
+                : 'ÇALIŞMA ALANINIZ, ODAĞINIZDA'}
             </span>
             <h2>
-              {register ? 'Make room for better support.' : 'Welcome back.'}
+              {register
+                ? 'Daha iyi destek için yer açın.'
+                : 'Tekrar hoş geldin.'}
             </h2>
             <p className="auth-description">
               {register
-                ? 'Create your account and your team’s workspace.'
-                : 'Sign in to your PulseDesk workspace.'}
+                ? 'Hesabınızı ve ekibinizin çalışma alanını oluşturun.'
+                : 'PulseDesk çalışma alanına giriş yap.'}
             </p>
             <form onSubmit={submit} noValidate aria-busy={pending}>
               {register &&
-                field('name', 'Full name', 'text', 'name', 'Alex Morgan')}
+                field('name', 'Ad Soyad', 'text', 'name', 'Deniz Yılmaz')}
               {field(
                 'email',
-                'Work email',
+                'İş e-postası',
                 'email',
                 'username',
-                'you@company.com',
+                'siz@sirket.com',
               )}
               {field(
                 'password',
-                'Password',
+                'Şifre',
                 'password',
                 register ? 'new-password' : 'current-password',
-                register ? 'At least 10 characters' : 'Enter your password',
+                register ? 'En az 10 karakter' : 'Şifrenizi girin',
               )}
               {register && (
                 <p id="password-help" className="field-help">
-                  10–128 characters. A memorable passphrase works well.
+                  10–128 karakter kullanın. Kolay hatırlayabileceğiniz uzun bir
+                  şifre seçin.
                 </p>
               )}
               {register &&
                 field(
                   'organizationName',
-                  'Organization name',
+                  'Çalışma Alanı Adı',
                   'text',
                   'organization',
-                  'Your team or company',
+                  'Ekibinizin veya şirketinizin adı',
                 )}
               {error && (
                 <div className="form-error" role="alert">
@@ -185,35 +192,39 @@ export function AuthForm({ register = false }: { register?: boolean }) {
                 {pending ? (
                   <>
                     <span className="spinner small" />
-                    {register ? 'Creating your workspace' : 'Signing you in'}
+                    {register
+                      ? 'Çalışma alanı oluşturuluyor'
+                      : 'Giriş yapılıyor'}
                   </>
                 ) : (
                   <>
-                    {register ? 'Create workspace' : 'Sign in'}
+                    {register ? 'Çalışma Alanı Oluştur' : 'Giriş Yap'}
                     <Icon name="arrow" size={18} />
                   </>
                 )}
               </button>
             </form>
             <p className="auth-alternative">
-              {register ? 'Already have an account?' : 'New to PulseDesk?'}{' '}
+              {register
+                ? 'Zaten bir hesabınız var mı?'
+                : 'PulseDesk’e yeni misin?'}{' '}
               <Link href={register ? '/login' : '/register'}>
-                {register ? 'Sign in' : 'Create a workspace'}
+                {register ? 'Giriş Yap' : 'Çalışma Alanı Oluştur'}
               </Link>
             </p>
             {!state.session.persistent && (
               <p className="storage-notice">
-                This browser cannot save your session. Keep this tab open while
-                you work.
+                Bu tarayıcı oturumunuzu kaydedemiyor. Çalışırken bu sekmeyi açık
+                tutun.
               </p>
             )}
             <div className="auth-security">
               <Icon name="shield" size={15} />
-              <span>A dedicated space for your team’s response.</span>
+              <span>Ekibinizin birlikte yanıt verdiği çalışma alanı.</span>
             </div>
           </div>
           <footer className="auth-footer">
-            PulseDesk <span>Support, with a steady pulse.</span>
+            PulseDesk <span>Desteğin ritmini yakalayın.</span>
           </footer>
         </section>
       </main>

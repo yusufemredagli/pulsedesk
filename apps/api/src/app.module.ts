@@ -1,3 +1,4 @@
+import { SettingsModule } from './modules/settings/settings.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
@@ -24,6 +25,7 @@ import { validateEnvironment } from './config/environment';
       validate: validateEnvironment,
     }),
     DatabaseModule,
+    SettingsModule,
     OperationsModule,
     AuthModule,
     RedisModule,
