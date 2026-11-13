@@ -193,7 +193,7 @@ test(
         },
       );
       await t.test(
-        'all four users have production Argon2id hashes and matching tenant roles',
+        'all demo users have production Argon2id hashes and matching tenant roles',
         async () => {
           const passwords = new PasswordService();
           for (const user of DEMO_USERS) {
@@ -416,8 +416,14 @@ test(
           const notifications = await db.notification.findMany({
             where: { organizationId },
           });
-          assert.equal(notifications.length, 4);
+          assert.equal(notifications.length, 5);
           assert.equal(notifications.filter((row) => row.readAt).length, 1);
+          assert.equal(
+            notifications.filter(
+              (row) => row.recipientMemberId === demoId('membership:ADMIN'),
+            ).length,
+            1,
+          );
           assert.equal(
             notifications.filter(
               (row) => row.recipientMemberId === demoId('membership:AGENT'),
@@ -434,7 +440,7 @@ test(
             await db.outboxEvent.count({
               where: { organizationId, type: 'NOTIFICATION_CREATED' },
             }),
-            4,
+            5,
           );
         },
       );

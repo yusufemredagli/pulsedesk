@@ -1,0 +1,51 @@
+PulseDesk local verification — 2026-11-13
+Node 25.1.0; pnpm 10.28.2; Docker Engine/CLI 29.9.2; Compose 5.6.1.
+Repository target Node 24 was not validated.
+No remote CI or deployment claim.
+
+pnpm test (no opt-in test services)
+@pulsedesk/web:test: ℹ tests 43
+@pulsedesk/web:test: ℹ pass 43
+@pulsedesk/web:test: ℹ fail 0
+@pulsedesk/web:test: ℹ cancelled 0
+@pulsedesk/web:test: ℹ skipped 0
+@pulsedesk/web:test: ℹ todo 0
+@pulsedesk/api:test: ℹ tests 31
+@pulsedesk/api:test: ℹ pass 23
+@pulsedesk/api:test: ℹ fail 0
+@pulsedesk/api:test: ℹ cancelled 0
+@pulsedesk/api:test: ℹ skipped 8
+@pulsedesk/api:test: ℹ todo 0
+
+pnpm test (dedicated migrated PostgreSQL and namespaced Redis)
+@pulsedesk/web:test: ℹ tests 43
+@pulsedesk/web:test: ℹ pass 43
+@pulsedesk/web:test: ℹ fail 0
+@pulsedesk/web:test: ℹ cancelled 0
+@pulsedesk/web:test: ℹ skipped 0
+@pulsedesk/web:test: ℹ todo 0
+@pulsedesk/api:test: ℹ tests 170
+@pulsedesk/api:test: ℹ pass 170
+@pulsedesk/api:test: ℹ fail 0
+@pulsedesk/api:test: ℹ cancelled 0
+@pulsedesk/api:test: ℹ skipped 0
+@pulsedesk/api:test: ℹ todo 0
+
+Final existing-script checks
+lint: exit 0
+typecheck: exit 0
+unit: exit 0
+integration: exit 0
+build: exit 0
+
+Browser: OWNER and AGENT flows; keyboard login, dialog Escape focus restoration; actual worker-generated SLA alert.
+Responsive: 8 populated screens at 390 and 320 CSS pixels, no document overflow observed.
+Console errors at final observation: OWNER 0, AGENT 0.
+HTTP statuses captured: {"204": 267, "200": 261, "201": 2, "404": 4}
+Non-2xx observations are intentional missing-ticket 404 checks; no headers/bodies/tokens captured.
+Contrast samples improved: auth footer 2.89 -> 5.10; supporting text 4.46 -> 5.10; placeholder 2.92 -> 5.29; focus outline 2.75 -> 4.71.
+This is not a complete WCAG, network, load or production audit.
+
+Pre-publication recheck: existing lint/typecheck/test/build commands rerun successfully.
+Default runner: 66 passed, 8 skipped; isolated PostgreSQL/Redis: 213 passed, 0 skipped (including nested subtests).
+Build reused Turborepo cache; this is not a cold-build measurement.

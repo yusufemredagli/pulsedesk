@@ -21,10 +21,11 @@ export function demoId(key: string): string {
 }
 export const DEMO_ORGANIZATION_ID = demoId('organization');
 export const DEMO_USERS = [
-  { role: 'OWNER', email: 'owner@pulsedesk.local', name: 'Yusuf Owner' },
-  { role: 'MANAGER', email: 'manager@pulsedesk.local', name: 'Merve Manager' },
-  { role: 'AGENT', email: 'agent@pulsedesk.local', name: 'Ahmet Agent' },
-  { role: 'VIEWER', email: 'viewer@pulsedesk.local', name: 'Selin Viewer' },
+  { role: 'OWNER', email: 'owner@pulsedesk.local', name: 'Demo Owner' },
+  { role: 'ADMIN', email: 'admin@pulsedesk.local', name: 'Demo Admin' },
+  { role: 'MANAGER', email: 'manager@pulsedesk.local', name: 'Demo Manager' },
+  { role: 'AGENT', email: 'agent@pulsedesk.local', name: 'Demo Agent' },
+  { role: 'VIEWER', email: 'viewer@pulsedesk.local', name: 'Demo Viewer' },
 ] as const satisfies ReadonlyArray<{
   role: OrganizationRole;
   email: string;
@@ -33,19 +34,19 @@ export const DEMO_USERS = [
 export const DEMO_TEAMS = ['Customer Support', 'Technical Support'] as const;
 export const DEMO_CUSTOMERS = [
   {
-    name: 'Acme Teknoloji',
-    email: 'destek@acmeteknoloji.test',
-    phone: '+90 312 555 10 01',
+    name: 'Demo Müşteri A',
+    email: 'customer-a@example.invalid',
+    phone: '',
   },
   {
-    name: 'Nova Lojistik',
-    email: 'operasyon@novalojistik.test',
-    phone: '+90 312 555 10 02',
+    name: 'Demo Müşteri B',
+    email: 'customer-b@example.invalid',
+    phone: '',
   },
   {
-    name: 'Atlas Yazılım',
-    email: 'destek@atlasyazilim.test',
-    phone: '+90 312 555 10 03',
+    name: 'Demo Müşteri C',
+    email: 'customer-c@example.invalid',
+    phone: '',
   },
 ] as const;
 export const DEMO_POLICIES = [
